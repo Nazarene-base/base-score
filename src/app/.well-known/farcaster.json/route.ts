@@ -1,28 +1,34 @@
 // Farcaster Manifest Route
-// This endpoint serves the manifest required for Base mini app discovery
-
 import { NextResponse } from 'next/server';
-import { minikitConfig } from '@/lib/minikit-config';
+
+const ROOT_URL = 'https://base-score-neon.vercel.app';
 
 export async function GET() {
   const manifest = {
-    accountAssociation: minikitConfig.accountAssociation,
+    accountAssociation: {
+      header: '',
+      payload: '',
+      signature: '',
+    },
     frame: {
-      version: minikitConfig.miniapp.version,
-      name: minikitConfig.miniapp.name,
-      subtitle: minikitConfig.miniapp.subtitle,
-      iconUrl: minikitConfig.miniapp.iconUrl,
-      splashImageUrl: minikitConfig.miniapp.splashImageUrl,
-      splashBackgroundColor: minikitConfig.miniapp.splashBackgroundColor,
-      homeUrl: minikitConfig.miniapp.homeUrl,
-      webhookUrl: minikitConfig.miniapp.webhookUrl,
+      version: '1',
+      name: 'Base Score',
+      subtitle: 'Track Your Base Activity',
+      description: 'Track your onchain activity, check airdrop readiness, and see your real trading P&L.',
+      iconUrl: `${ROOT_URL}/icon.png`,
+      splashImageUrl: `${ROOT_URL}/splash.png`,
+      splashBackgroundColor: '#0A0B0D',
+      homeUrl: ROOT_URL,
+      webhookUrl: `${ROOT_URL}/api/webhook`,
+      primaryCategory: 'finance',
+      tags: ['analytics', 'trading', 'airdrop', 'defi', 'portfolio'],
     },
   };
 
   return NextResponse.json(manifest, {
     headers: {
       'Content-Type': 'application/json',
-      'Cache-Control': 'public, max-age=3600',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
     },
   });
 }
