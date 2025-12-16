@@ -1,6 +1,7 @@
 // Root Layout - Wraps all pages with providers and global styles
 import type { Metadata, Viewport } from 'next';
 import { Providers } from '@/components/Providers';
+import BaseReady from '@/components/BaseReady';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -43,9 +44,11 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
           rel="stylesheet"
         />
+        <script src="https://basescan.org/scripts/base-sdk.js" async></script>
       </head>
       <body className="bg-bg-primary text-white antialiased">
         <Providers>{children}</Providers>
+        <BaseReady />
       </body>
     </html>
   );
