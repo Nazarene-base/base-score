@@ -1,19 +1,22 @@
-// Dashboard - Main app interface after wallet connection
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import sdk from '@farcaster/frame-sdk';
 import { useAccount, useDisconnect } from 'wagmi';
 import { useWalletData } from '@/hooks/useWalletData';
 import { BaseScoreTab } from './BaseScoreTab';
 import { PnLTab } from './PnLTab';
-import { ZapIcon, TrophyIcon, ChartIcon, WalletIcon, RefreshIcon } from './Icons';
+import ScoreHero from './ScoreCard'; 
+import { RefreshIcon } from './Icons';
 
 type TabId = 'score' | 'pnl';
 
 export function Dashboard() {
   const [activeTab, setActiveTab] = useState<TabId>('score');
+  const [farcasterUser, setFarcasterUser] = useState<any>(null);
   const { address } = useAccount();
   const { disconnect } = useDisconnect();
+  
   const {
     isLoading,
     error,
@@ -26,129 +29,130 @@ export function Dashboard() {
     refetch,
   } = useWalletData();
 
-  // Format address for display
-  const shortAddress = address
-    ? `${address.slice(0, 6)}...${address.slice(-4)}`
-    : '';
+  useEffect(() => {
+    const init = async () => {
+      const context = await sdk.context;
+      if (context?.user) {
+        setFarcasterUser(context.user);
+      }
+      await sdk.actions.ready();
+    };
+    init();
+  }, []);
 
-  // Loading state
+  const shortAddress = address ? `${address.slice(0, 6)}...${address.slice(-4)}` : '';
+
+  // 1. High-End Technical Loading State
   if (isLoading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-bg-primary">
-        <div className="w-12 h-12 border-3 border-bg-tertiary border-t-base-blue rounded-full animate-spin" />
-        <p className="mt-4 text-gray-400">Loading your Base activity...</p>
-      </div>
-    );
-  }
-
-  // Error state
-  if (error) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-bg-primary px-5">
-        <div className="text-danger text-6xl mb-4">⚠️</div>
-        <h2 className="text-xl font-bold mb-2">Something went wrong</h2>
-        <p className="text-gray-400 text-center mb-6">{error}</p>
-        <button
-          onClick={refetch}
-          className="px-6 py-3 bg-base-blue rounded-xl text-white font-semibold"
-        >
-          Try Again
-        </button>
-      </div>
-    );
-  }
-
-  // No data state (new wallet)
-  if (!stats) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-bg-primary px-5">
-        <div className="text-6xl mb-4">🆕</div>
-        <h2 className="text-xl font-bold mb-2">Welcome to Base!</h2>
-        <p className="text-gray-400 text-center mb-6">
-          No activity found yet. Start using Base to build your score!
+      <div className="min-h-screen flex flex-col items-center justify-center bg-bg-primary font-jetbrains-mono">
+        <div className="w-48 h-[1px] bg-white/5 overflow-hidden relative mb-6">
+          <div className="absolute inset-0 bg-base-blue animate-scan" />
+        </div>
+        <p className="text-[10px] text-gray-500 tracking-[0.4em] uppercase animate-pulse">
+          Analyzing Base Mainnet
         </p>
-        <a
-          href="https://bridge.base.org"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="px-6 py-3 bg-base-blue rounded-xl text-white font-semibold"
-        >
-          Bridge to Base
-        </a>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-base-blue/5 via-bg-primary to-bg-primary">
-      {/* Header */}
-      <header className="flex items-center justify-between px-5 py-4 border-b border-border">
+    <div className="min-h-screen bg-bg-primary text-white selection:bg-base-blue">
+      {/* 2. Glassmorphism Header */}
+      <header className="sticky top-0 z-50 px-6 py-4 flex justify-between items-center backdrop-blur-xl border-b border-white/[0.03] bg-bg-primary/80">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-base-blue to-base-blue-light flex items-center justify-center">
-            <ZapIcon className="w-5 h-5 text-white" />
-          </div>
-          <span className="font-semibold text-lg">Base Score</span>
+          <div className="w-2 h-2 rounded-full bg-base-blue shadow-[0_0_10px_rgba(0,82,255,0.8)]" />
+          <span className="font-space-grotesk font-bold tracking-tighter text-sm uppercase">Base Score</span>
         </div>
-
-        <div className="flex items-center gap-2">
-          {/* Refresh button */}
-          <button
-            onClick={refetch}
-            className="p-2 rounded-lg bg-bg-secondary border border-border text-gray-400 hover:text-white transition-colors"
-            title="Refresh data"
-          >
-            <RefreshIcon />
+        <div className="flex items-center gap-5">
+          <button onClick={refetch} className="text-gray-500 hover:text-white transition-colors">
+            <RefreshIcon className="w-4 h-4" />
           </button>
-          
-          {/* Wallet button */}
-          <button
-            onClick={() => disconnect()}
-            className="flex items-center gap-2 px-3 py-2 bg-bg-secondary border border-border rounded-xl text-gray-400 text-sm font-mono hover:text-white transition-colors"
-          >
-            <WalletIcon className="w-4 h-4" />
-            {shortAddress}
+          <button onClick={() => disconnect()} className="text-[10px] font-jetbrains-mono text-gray-500 hover:text-white transition-colors">
+            {shortAddress} [DISCONNECT]
           </button>
         </div>
       </header>
 
-      {/* Content */}
-      <main className="px-5 py-5 max-w-lg mx-auto">
-        {/* Tab Navigation */}
-        <div className="flex gap-2 p-1 bg-bg-secondary rounded-xl mb-5">
+      <main className="max-w-lg mx-auto px-6 py-10 pb-24">
+        {/* 3. Professional Identity Section */}
+        {farcasterUser && (
+          <div className="flex items-center gap-4 mb-14 animate-fade-in">
+            <div className="relative">
+              <img 
+                src={farcasterUser.pfpUrl} 
+                className="w-12 h-12 rounded-full grayscale hover:grayscale-0 transition-all duration-1000 border border-white/10" 
+                alt="pfp" 
+              />
+              <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-bg-primary rounded-full flex items-center justify-center">
+                <div className="w-2.5 h-2.5 bg-green-500 rounded-full border border-bg-primary" />
+              </div>
+            </div>
+            <div>
+              <p className="text-[9px] font-jetbrains-mono text-gray-500 uppercase tracking-[0.2em]">Verified Operator</p>
+              <h2 className="text-xl font-space-grotesk font-bold tracking-tight">@{farcasterUser.username}</h2>
+            </div>
+          </div>
+        )}
+
+        {/* 4. The Hero Component */}
+        {activeTab === 'score' && (
+          <div className="mb-14">
+            <ScoreHero score={baseScore} />
+          </div>
+        )}
+
+        {/* 5. Modern Minimalist Tab Navigation */}
+        <nav className="flex gap-10 border-b border-white/[0.05] mb-12">
           {[
-            { id: 'score' as const, label: 'Base Score', icon: <TrophyIcon /> },
-            { id: 'pnl' as const, label: 'P&L', icon: <ChartIcon /> },
+            { id: 'score' as const, label: 'Analytics' },
+            { id: 'pnl' as const, label: 'Market P&L' },
           ].map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-semibold text-sm transition-all ${
-                activeTab === tab.id
-                  ? 'bg-base-blue text-white'
-                  : 'text-gray-400 hover:text-white'
+              className={`pb-4 text-[10px] font-jetbrains-mono uppercase tracking-[0.3em] transition-all relative ${
+                activeTab === tab.id ? 'text-white' : 'text-gray-600 hover:text-gray-300'
               }`}
             >
-              {tab.icon}
               {tab.label}
+              {activeTab === tab.id && (
+                <div className="absolute bottom-0 left-0 w-full h-[1.5px] bg-base-blue shadow-[0_0_8px_rgba(0,82,255,0.5)]" />
+              )}
             </button>
           ))}
+        </nav>
+
+        {/* 6. Content Display */}
+        <div className="animate-fade-in">
+          {activeTab === 'score' ? (
+            <BaseScoreTab 
+              baseScore={baseScore} 
+              percentile={percentile} 
+              stats={stats} 
+              checklist={checklist} 
+            />
+          ) : (
+            <PnLTab pnl={pnl} recentTrades={recentTrades} />
+          )}
         </div>
 
-        {/* Tab Content */}
-        {activeTab === 'score' ? (
-          <BaseScoreTab
-            baseScore={baseScore}
-            percentile={percentile}
-            stats={stats}
-            checklist={checklist}
-          />
-        ) : pnl ? (
-          <PnLTab pnl={pnl} recentTrades={recentTrades} />
-        ) : (
-          <div className="text-center py-10 text-gray-400">
-            No trading data available
-          </div>
-        )}
+        {/* 7. Institutional-Grade Sharing */}
+        <div className="mt-16 pt-8 border-t border-white/[0.03] flex justify-center">
+          <button 
+            onClick={() => {
+              const shareText = encodeURIComponent(`Base Score: ${baseScore} | Percentile: ${percentile}\n\nAnalyzing my on-chain footprint on @base.`);
+              const shareUrl = encodeURIComponent(`https://base-score-neon.vercel.app`);
+              window.open(`https://warpcast.com/~/compose?text=${shareText}&embeds[]=${shareUrl}`, '_blank');
+            }}
+            className="group flex flex-col items-center gap-3"
+          >
+            <span className="text-[10px] font-jetbrains-mono text-gray-500 group-hover:text-white transition-colors uppercase tracking-[0.3em]">
+              Dispatch to Warpcast
+            </span>
+            <div className="h-[1px] w-12 bg-white/10 group-hover:w-24 group-hover:bg-base-blue transition-all duration-500" />
+          </button>
+        </div>
       </main>
     </div>
   );
