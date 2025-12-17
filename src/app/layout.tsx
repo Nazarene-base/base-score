@@ -1,24 +1,36 @@
-// Root Layout - Wraps all pages with providers and global styles
 import type { Metadata, Viewport } from 'next';
 import { Providers } from '@/components/Providers';
 import BaseReady from '@/components/BaseReady';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Base Score - Track Your Base Activity',
-  description:
-    'Track your Base activity, check airdrop readiness, and see your real trading P&L. Know where you rank among Base users.',
+  title: 'Base Score',
+  description: 'Track your onchain activity, check airdrop readiness, and see your real trading P&L',
+  icons: {
+    icon: '/icon.png',
+  },
   openGraph: {
     title: 'Base Score',
-    description: 'Track your Base activity and airdrop readiness',
+    description: 'Track your onchain activity, check airdrop readiness, and see your real trading P&L',
     images: ['/og-image.png'],
   },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'Base Score',
-    description: 'Track your Base activity and airdrop readiness',
-    images: ['/og-image.png'],
-  },
+  // This is the Farcaster Frame v2 Metadata
+  other: {
+    'fc:frame': JSON.stringify({
+      version: '1',
+      imageUrl: 'https://base-score-neon.vercel.app/og-image.png',
+      button: {
+        title: 'Check Your Score',
+        action: {
+          type: 'launch_frame',
+          name: 'Base Score',
+          url: 'https://base-score-neon.vercel.app',
+          splashImageUrl: 'https://base-score-neon.vercel.app/splash.png',
+          splashBackgroundColor: '#040B0D'
+        }
+      }
+    })
+  }
 };
 
 export const viewport: Viewport = {
@@ -37,6 +49,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        {/* Necessary for Base SDK and branding */}
         <meta name="base:app_id" content="6940a615d77c069a945bdf3b" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -47,7 +60,9 @@ export default function RootLayout({
         <script src="https://basescan.org/scripts/base-sdk.js" async></script>
       </head>
       <body className="bg-bg-primary text-white antialiased">
-        <Providers>{children}</Providers>
+        <Providers>
+          {children}
+        </Providers>
         <BaseReady />
       </body>
     </html>
