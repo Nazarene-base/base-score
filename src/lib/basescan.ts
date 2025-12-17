@@ -1,5 +1,5 @@
-// BaseScan API Service
-// Fetches transaction data from Base blockchain
+// BaseScan API Service - Using Etherscan API V2
+// Single API key works across all EVM chains
 
 import {
   BaseScanTransaction,
@@ -11,63 +11,77 @@ import {
   TRACKED_PROTOCOLS,
 } from '@/types';
 
+// Base network endpoint (part of Etherscan API V2)
 const BASESCAN_API = 'https://api.basescan.org/api';
+
+// Get Etherscan API V2 key from environment
 const API_KEY = process.env.NEXT_PUBLIC_BASESCAN_API_KEY || '';
 
-// Helper to make API calls
+// Debug logging
+if (typeof window !== 'undefined') {
+  console.log('🔑 Etherscan API V2 Key Status:', API_KEY ? '✓ Loaded' : '✗ Missing');
+  console.log('📏 Key Length:', API_KEY.length, 'chars');
+  console.log('🌐 API Endpoint:', BASESCAN_API);
+}
+
+// Helper to make API calls with Etherscan API V2
 async function fetchBaseScan<T>(params: Record<string, string>): Promise<T[]> {
+  // Etherscan API V2 uses 'apikey' parameter
   const searchParams = new URLSearchParams({
     ...params,
     apikey: API_KEY,
   });
 
+  const url = `${BASESCAN_API}?${searchParams}`;
+  
+  console.log('🔍 API Call:', params.module + '.' + params.action);
+  console.log('📍 URL:', url.replace(API_KEY, 'KEY_HIDDEN'));
+
   try {
-    const response = await fetch(`${BASESCAN_API}?${searchParams}`);
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      console.error('❌ HTTP Error:', response.status, response.statusText);
+      return [];
+    }
+
     const data: BaseScanResponse<T> = await response.json();
 
+    console.log('📊 Response:', {
+      status: data.status,
+      message: data.message,
+      resultType: typeof data.result,
+      resultCount: Array.isArray(data.result) ? data.result.length : 'N/A'
+    });
+
+    // Etherscan API V2 returns status "1" for success
     if (data.status === '1' && Array.isArray(data.result)) {
+      console.log('✅ Success:', data.result.length, 'items');
       return data.result;
     }
+    
+    if (data.status === '0') {
+      console.warn('⚠️ API Warning:', data.message);
+      // "No transactions found" is normal for new wallets
+      if (data.message === 'No transactions found') {
+        console.log('ℹ️ Wallet has no transactions on Base network');
+      }
+    }
+    
     return [];
   } catch (error) {
-    console.error('BaseScan API error:', error);
+    console.error('❌ Fetch Error:', error);
     return [];
   }
 }
 
 // Get all transactions for an address
 export async function getTransactions(address: string): Promise<BaseScanTransaction[]> {
-  return fetchBaseScan<BaseScanTransaction>({
+  console.log('📥 Fetching transactions for:', address);
+  
+  const result = await fetchBaseScan<BaseScanTransaction>({
     module: 'account',
     action: 'txlist',
-    address,
-    startblock: '0',
-    endblock: '99999999',
-    page: '1',
-    offset: '10000',
-    sort: 'desc',
-  });
-}
-
-// Get token transfers for an address
-export async function getTokenTransfers(address: string): Promise<BaseScanTokenTransfer[]> {
-  return fetchBaseScan<BaseScanTokenTransfer>({
-    module: 'account',
-    action: 'tokentx',
-    address,
-    startblock: '0',
-    endblock: '99999999',
-    page: '1',
-    offset: '10000',
-    sort: 'desc',
-  });
-}
-
-// Get NFT transfers
-export async function getNFTTransfers(address: string): Promise<BaseScanTokenTransfer[]> {
-  return fetchBaseScan<BaseScanTokenTransfer>({
-    module: 'account',
-    action: 'tokennfttx',
     address,
     startblock: '0',
     endblock: '99999999',
@@ -75,6 +89,47 @@ export async function getNFTTransfers(address: string): Promise<BaseScanTokenTra
     offset: '1000',
     sort: 'desc',
   });
+  
+  console.log(`✓ ${result.length} transactions retrieved`);
+  return result;
+}
+
+// Get ERC-20 token transfers
+export async function getTokenTransfers(address: string): Promise<BaseScanTokenTransfer[]> {
+  console.log('📥 Fetching token transfers for:', address);
+  
+  const result = await fetchBaseScan<BaseScanTokenTransfer>({
+    module: 'account',
+    action: 'tokentx',
+    address,
+    startblock: '0',
+    endblock: '99999999',
+    page: '1',
+    offset: '1000',
+    sort: 'desc',
+  });
+  
+  console.log(`✓ ${result.length} token transfers retrieved`);
+  return result;
+}
+
+// Get ERC-721 NFT transfers
+export async function getNFTTransfers(address: string): Promise<BaseScanTokenTransfer[]> {
+  console.log('📥 Fetching NFT transfers for:', address);
+  
+  const result = await fetchBaseScan<BaseScanTokenTransfer>({
+    module: 'account',
+    action: 'tokennfttx',
+    address,
+    startblock: '0',
+    endblock: '99999999',
+    page: '1',
+    offset: '500',
+    sort: 'desc',
+  });
+  
+  console.log(`✓ ${result.length} NFT transfers retrieved`);
+  return result;
 }
 
 // Get ETH balance
@@ -88,13 +143,21 @@ export async function getBalance(address: string): Promise<string> {
   return Array.isArray(result) ? '0' : (result as unknown as string);
 }
 
-// Calculate wallet stats from transactions
+// Calculate wallet statistics
 export function calculateWalletStats(
   transactions: BaseScanTransaction[],
   tokenTransfers: BaseScanTokenTransfer[],
   nftTransfers: BaseScanTokenTransfer[]
 ): WalletStats {
-  if (transactions.length === 0) {
+  console.log('📊 Calculating stats:', {
+    txs: transactions.length,
+    tokens: tokenTransfers.length,
+    nfts: nftTransfers.length
+  });
+
+  // Handle empty wallet
+  if (transactions.length === 0 && tokenTransfers.length === 0) {
+    console.log('ℹ️ Empty wallet - no activity found');
     return {
       totalTransactions: 0,
       uniqueProtocols: 0,
@@ -107,42 +170,44 @@ export function calculateWalletStats(
     };
   }
 
-  // Get unique contracts interacted with
+  // Unique contracts
   const uniqueContracts = new Set(
     transactions
       .filter((tx) => tx.to && tx.to !== '')
       .map((tx) => tx.to.toLowerCase())
   );
 
-  // Calculate gas spent in ETH
+  // Gas spent in ETH
   const gasSpent = transactions.reduce((acc, tx) => {
     const gasUsed = BigInt(tx.gasUsed || '0');
     const gasPrice = BigInt(tx.gasPrice || '0');
     return acc + (Number(gasUsed * gasPrice) / 1e18);
   }, 0);
 
-  // Calculate total volume from token transfers (simplified)
+  // Token transfer volume (simplified)
   const totalVolume = tokenTransfers.reduce((acc, transfer) => {
-    // This is simplified - in production you'd want to fetch token prices
-    const value = Number(transfer.value) / Math.pow(10, Number(transfer.tokenDecimal || 18));
+    const decimals = Number(transfer.tokenDecimal || 18);
+    const value = Number(transfer.value) / Math.pow(10, decimals);
     return acc + value;
   }, 0);
 
-  // Get first transaction date
-  const sortedTxs = [...transactions].sort(
+  // First transaction date
+  const allTxs = [...transactions, ...tokenTransfers].sort(
     (a, b) => Number(a.timeStamp) - Number(b.timeStamp)
   );
-  const firstTxDate = new Date(Number(sortedTxs[0].timeStamp) * 1000).toISOString();
+  const firstTxDate = allTxs.length > 0 
+    ? new Date(Number(allTxs[0].timeStamp) * 1000).toISOString()
+    : new Date().toISOString();
 
-  // Calculate unique days active
+  // Unique days active
   const uniqueDays = new Set(
-    transactions.map((tx) => {
+    allTxs.map((tx) => {
       const date = new Date(Number(tx.timeStamp) * 1000);
       return date.toISOString().split('T')[0];
     })
   );
 
-  // Count bridge transactions (simplified - check for bridge contract interactions)
+  // Bridge transactions
   const bridgeContracts = TRACKED_PROTOCOLS
     .filter((p) => p.category === 'bridge')
     .flatMap((p) => p.contracts.map((c) => c.toLowerCase()));
@@ -151,190 +216,123 @@ export function calculateWalletStats(
     bridgeContracts.includes(tx.to?.toLowerCase() || '')
   ).length;
 
-  // Count NFT mints (transfers where from is zero address)
-  const nftsMinted = nftTransfers.filter(
-    (transfer) => transfer.from === '0x0000000000000000000000000000000000000000'
-  ).length;
-
-  return {
-    totalTransactions: transactions.length,
+  const stats = {
+    totalTransactions: transactions.length + tokenTransfers.length,
     uniqueProtocols: uniqueContracts.size,
     totalVolume: Math.round(totalVolume * 100) / 100,
     firstTxDate,
     daysActive: uniqueDays.size,
     gasSpent: Math.round(gasSpent * 10000) / 10000,
-    nftsMinted,
+    nftsMinted: nftTransfers.length,
     bridgeTransactions,
   };
+
+  console.log('✅ Stats:', stats);
+  return stats;
 }
 
-// Generate checklist based on actual activity
+// Generate airdrop checklist
 export function generateChecklist(
   transactions: BaseScanTransaction[],
   tokenTransfers: BaseScanTokenTransfer[],
   nftTransfers: BaseScanTokenTransfer[]
 ): ChecklistItem[] {
-  const contractsInteracted = new Set(
-    transactions.map((tx) => tx.to?.toLowerCase() || '')
-  );
+  console.log('📋 Generating checklist...');
+  
+  // Get all contract interactions
+  const allContracts = new Set([
+    ...transactions.map(tx => tx.to?.toLowerCase() || ''),
+    ...tokenTransfers.map(tx => tx.contractAddress?.toLowerCase() || ''),
+    ...nftTransfers.map(tx => tx.contractAddress?.toLowerCase() || ''),
+  ]);
 
-  const hasInteractedWith = (contracts: string[]): boolean => {
-    return contracts.some((c) => contractsInteracted.has(c.toLowerCase()));
-  };
+  const checklist: ChecklistItem[] = [];
 
-  const uniswap = TRACKED_PROTOCOLS.find((p) => p.name === 'Uniswap')!;
-  const aerodrome = TRACKED_PROTOCOLS.find((p) => p.name === 'Aerodrome')!;
-  const aave = TRACKED_PROTOCOLS.find((p) => p.name === 'Aave')!;
-  const compound = TRACKED_PROTOCOLS.find((p) => p.name === 'Compound')!;
-  const bridge = TRACKED_PROTOCOLS.find((p) => p.name === 'Base Bridge')!;
-  const zora = TRACKED_PROTOCOLS.find((p) => p.name === 'Zora')!;
-  const basename = TRACKED_PROTOCOLS.find((p) => p.name === 'Basename')!;
+  // Check each protocol
+  for (const protocol of TRACKED_PROTOCOLS) {
+    const hasInteracted = protocol.contracts.some(contract => 
+      allContracts.has(contract.toLowerCase())
+    );
+    
+    checklist.push({
+      name: protocol.name,
+      completed: hasInteracted,
+      url: getProtocolUrl(protocol.name),
+      category: protocol.category,
+    });
+  }
 
-  // Check for LP provision (simplified - look for specific method signatures)
-  const hasProvidedLiquidity = transactions.some(
-    (tx) => tx.functionName?.toLowerCase().includes('addliquidity')
-  );
+  const completed = checklist.filter(item => item.completed).length;
+  console.log(`✅ Checklist: ${completed}/${checklist.length} completed`);
 
-  return [
-    {
-      id: 1,
-      task: 'Swap on Uniswap',
-      description: 'Complete a token swap on Uniswap',
-      completed: hasInteractedWith(uniswap.contracts),
-      link: 'https://app.uniswap.org',
-      points: 50,
-    },
-    {
-      id: 2,
-      task: 'Swap on Aerodrome',
-      description: 'Complete a token swap on Aerodrome',
-      completed: hasInteractedWith(aerodrome.contracts),
-      link: 'https://aerodrome.finance/swap',
-      points: 50,
-    },
-    {
-      id: 3,
-      task: 'Provide Liquidity',
-      description: 'Add liquidity to any DEX pool',
-      completed: hasProvidedLiquidity,
-      link: 'https://aerodrome.finance/liquidity',
-      points: 100,
-    },
-    {
-      id: 4,
-      task: 'Mint an NFT',
-      description: 'Mint any NFT on Base',
-      completed: nftTransfers.some(
-        (t) => t.from === '0x0000000000000000000000000000000000000000'
-      ),
-      link: 'https://zora.co',
-      points: 50,
-    },
-    {
-      id: 5,
-      task: 'Use Base Bridge',
-      description: 'Bridge assets to Base',
-      completed: hasInteractedWith(bridge.contracts),
-      link: 'https://bridge.base.org',
-      points: 75,
-    },
-    {
-      id: 6,
-      task: 'Register Basename',
-      description: 'Get your .base name',
-      completed: hasInteractedWith(basename.contracts),
-      link: 'https://www.base.org/names',
-      points: 100,
-    },
-    {
-      id: 7,
-      task: 'Use Lending Protocol',
-      description: 'Supply or borrow on Aave/Compound',
-      completed: hasInteractedWith([...aave.contracts, ...compound.contracts]),
-      link: 'https://app.aave.com/?marketName=proto_base_v3',
-      points: 75,
-    },
-    {
-      id: 8,
-      task: '10+ Transactions',
-      description: 'Complete at least 10 transactions',
-      completed: transactions.length >= 10,
-      link: null,
-      points: 25,
-    },
-    {
-      id: 9,
-      task: '50+ Transactions',
-      description: 'Complete at least 50 transactions',
-      completed: transactions.length >= 50,
-      link: null,
-      points: 50,
-    },
-    {
-      id: 10,
-      task: 'Active 30+ Days',
-      description: 'Be active on Base for over 30 days',
-      completed: (() => {
-        if (transactions.length === 0) return false;
-        const sorted = [...transactions].sort(
-          (a, b) => Number(a.timeStamp) - Number(b.timeStamp)
-        );
-        const firstTx = Number(sorted[0].timeStamp) * 1000;
-        const daysSinceFirst = (Date.now() - firstTx) / (1000 * 60 * 60 * 24);
-        return daysSinceFirst >= 30;
-      })(),
-      link: null,
-      points: 100,
-    },
-  ];
+  return checklist;
 }
 
-// Calculate Base Score from stats and checklist
+// Protocol URLs
+function getProtocolUrl(name: string): string {
+  const urls: Record<string, string> = {
+    'Uniswap': 'https://app.uniswap.org',
+    'Aerodrome': 'https://aerodrome.finance',
+    'Aave': 'https://app.aave.com',
+    'Compound': 'https://app.compound.finance',
+    'Base Bridge': 'https://bridge.base.org',
+    'Zora': 'https://zora.co',
+    'Basename': 'https://www.base.org/names',
+  };
+  return urls[name] || 'https://base.org';
+}
+
+// Calculate Base Score (0-1000)
 export function calculateBaseScore(
   stats: WalletStats,
   checklist: ChecklistItem[]
 ): { score: number; percentile: number } {
   let score = 0;
 
-  // Points from checklist (max 675 points)
-  const checklistPoints = checklist
-    .filter((item) => item.completed)
-    .reduce((acc, item) => acc + item.points, 0);
-  score += checklistPoints;
+  // Checklist completion (40% weight = 400 points)
+  const completed = checklist.filter(item => item.completed).length;
+  score += (completed / checklist.length) * 400;
 
-  // Points from transaction count (max 100 points)
+  // Transaction activity (10% weight = 100 points)
   score += Math.min(stats.totalTransactions / 5, 100);
 
-  // Points from unique protocols (max 75 points)
+  // Protocol diversity (7.5% weight = 75 points)
   score += Math.min(stats.uniqueProtocols * 5, 75);
 
-  // Points from days active (max 50 points)
+  // Days active (5% weight = 50 points)
   score += Math.min(stats.daysActive, 50);
 
-  // Points from volume (max 100 points) - simplified
+  // Volume (10% weight = 100 points)
   score += Math.min(stats.totalVolume / 100, 100);
 
-  // Cap at 1000
+  // NFT activity (5% weight = 50 points)
+  score += Math.min(stats.nftsMinted * 5, 50);
+
+  // Bridge usage bonus (2.5% weight = 25 points)
+  score += Math.min(stats.bridgeTransactions * 5, 25);
+
+  // Round and cap at 1000
   score = Math.min(Math.round(score), 1000);
 
-  // Estimate percentile (simplified - in production you'd compare against all users)
+  // Estimate percentile (simplified)
   const percentile = Math.min(Math.round((score / 1000) * 100), 99);
+
+  console.log(`🎯 Score: ${score}/1000 (Top ${100 - percentile}%)`);
 
   return { score, percentile };
 }
 
-// Parse recent trades from token transfers
+// Parse recent trades
 export function parseRecentTrades(
   tokenTransfers: BaseScanTokenTransfer[],
   walletAddress: string
 ): Trade[] {
+  console.log('💱 Parsing trades...');
+  
   const trades: Trade[] = [];
   const now = Date.now();
 
-  // Get last 10 token transfers that look like trades
-  const recentTransfers = tokenTransfers.slice(0, 20);
-
-  for (const transfer of recentTransfers) {
+  for (const transfer of tokenTransfers.slice(0, 20)) {
     const isBuy = transfer.to.toLowerCase() === walletAddress.toLowerCase();
     const timestamp = Number(transfer.timeStamp) * 1000;
     const timeDiff = now - timestamp;
@@ -348,24 +346,28 @@ export function parseRecentTrades(
       timeAgo = `${Math.floor(timeDiff / 86400000)}d ago`;
     }
 
+    const decimals = Number(transfer.tokenDecimal || 18);
+    const amount = Number(transfer.value) / Math.pow(10, decimals);
+
     trades.push({
       hash: transfer.hash,
       token: transfer.tokenSymbol || 'Unknown',
       tokenAddress: transfer.contractAddress,
       type: isBuy ? 'buy' : 'sell',
-      amount: Number(transfer.value) / Math.pow(10, Number(transfer.tokenDecimal || 18)),
-      amountUSD: 0, // Would need price API
-      pnl: null, // Would need to track buy/sell pairs
+      amount,
+      amountUSD: 0,
+      pnl: null,
       pnlPercent: null,
       timestamp,
       timeAgo,
     });
   }
 
+  console.log(`✅ ${trades.length} trades parsed`);
   return trades.slice(0, 10);
 }
 
-// Main function to fetch all wallet data
+// Main data fetching function
 export async function fetchWalletData(address: string): Promise<{
   stats: WalletStats;
   checklist: ChecklistItem[];
@@ -373,24 +375,36 @@ export async function fetchWalletData(address: string): Promise<{
   percentile: number;
   recentTrades: Trade[];
 }> {
+  console.log('🚀 Starting wallet data fetch');
+  console.log('📬 Address:', address);
+  console.log('🔑 API Key present:', API_KEY ? 'YES' : 'NO');
+  console.log('📡 Endpoint:', BASESCAN_API);
+
+  if (!API_KEY) {
+    console.error('❌ CRITICAL: No API key found!');
+    console.error('Set NEXT_PUBLIC_BASESCAN_API_KEY in .env.local');
+    console.error('Get key from: https://etherscan.io/myapikey');
+  }
+
   // Fetch all data in parallel
+  console.log('⏳ Fetching data from Etherscan API V2...');
+  
   const [transactions, tokenTransfers, nftTransfers] = await Promise.all([
     getTransactions(address),
     getTokenTransfers(address),
     getNFTTransfers(address),
   ]);
 
-  // Calculate stats
+  console.log('✅ All API calls complete');
+
+  // Calculate everything
   const stats = calculateWalletStats(transactions, tokenTransfers, nftTransfers);
-
-  // Generate checklist
   const checklist = generateChecklist(transactions, tokenTransfers, nftTransfers);
-
-  // Calculate score
   const { score, percentile } = calculateBaseScore(stats, checklist);
-
-  // Parse recent trades
   const recentTrades = parseRecentTrades(tokenTransfers, address);
+
+  console.log('🎉 Wallet data ready!');
+  console.log('📊 Summary:', { score, percentile, txs: stats.totalTransactions });
 
   return {
     stats,
