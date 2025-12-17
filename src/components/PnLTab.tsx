@@ -1,6 +1,6 @@
-// P&L Tab - Shows trading performance and recent trades
 'use client';
 
+import React from 'react';
 import { StatCard } from './StatCard';
 import { ArrowUpIcon, ArrowDownIcon, ClockIcon } from './Icons';
 import type { PnLData, Trade } from '@/types';
@@ -14,116 +14,83 @@ export function PnLTab({ pnl, recentTrades }: PnLTabProps) {
   const isProfit = pnl.totalPnL >= 0;
 
   return (
-    <div className="space-y-5">
-      {/* P&L Header Card */}
-      <div
-        className="rounded-2xl p-6 border text-center animate-fade-in"
-        style={{
-          background: isProfit
-            ? 'linear-gradient(135deg, rgba(0, 211, 149, 0.1) 0%, var(--bg-card) 100%)'
-            : 'linear-gradient(135deg, rgba(255, 82, 82, 0.1) 0%, var(--bg-card) 100%)',
-          borderColor: isProfit
-            ? 'rgba(0, 211, 149, 0.3)'
-            : 'rgba(255, 82, 82, 0.3)',
-        }}
-      >
-        <div className="text-xs text-gray-500 uppercase tracking-wider mb-2">
-          Total P&L
-        </div>
+    <div className="animate-fade-in space-y-10">
+      {/* 1. Hero P&L Summary - Institutional Glass Style */}
+      <div className="relative group overflow-hidden rounded-[2.5rem] border border-white/10 bg-white/[0.02] p-10 backdrop-blur-3xl transition-all duration-700 hover:bg-white/[0.04]">
+        {/* Professional ambient glow based on profit status */}
+        <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 blur-[100px] -z-10 opacity-20 ${isProfit ? 'bg-green-500' : 'bg-red-500'}`} />
         
-        <div
-          className={`text-4xl font-bold font-mono flex items-center justify-center gap-2 ${
-            isProfit ? 'text-success' : 'text-danger'
-          }`}
-        >
-          {isProfit ? <ArrowUpIcon className="w-6 h-6" /> : <ArrowDownIcon className="w-6 h-6" />}
-          ${Math.abs(pnl.totalPnL).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-        </div>
-        
-        <div className={`text-base mt-1 ${isProfit ? 'text-success' : 'text-danger'}`}>
-          {isProfit ? '+' : ''}{pnl.totalPnLPercent.toFixed(1)}%
+        <div className="text-center">
+          <p className="text-[10px] font-jetbrains-mono text-gray-500 uppercase tracking-[0.4em] mb-4">Realized Performance</p>
+          <div className={`text-6xl font-space-grotesk font-bold tracking-tighter flex items-center justify-center gap-3 ${isProfit ? 'text-green-400' : 'text-red-400'}`}>
+            {isProfit ? <ArrowUpIcon className="w-8 h-8" /> : <ArrowDownIcon className="w-8 h-8" />}
+            ${Math.abs(pnl.totalPnL).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </div>
+          <p className={`mt-2 font-jetbrains-mono text-sm ${isProfit ? 'text-green-500/80' : 'text-red-500/80'}`}>
+            {isProfit ? 'PROFIT' : 'LOSS'} / {isProfit ? '+' : ''}{pnl.totalPnLPercent.toFixed(1)}%
+          </p>
         </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 gap-3 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+      {/* 2. Stats Grid using your Professional StatCards */}
+      <div className="grid grid-cols-2 gap-4">
         <StatCard
           label="Win Rate"
           value={`${pnl.winRate.toFixed(0)}%`}
-          subValue={`${pnl.totalTrades} total trades`}
+          subValue={`${pnl.totalTrades} total events`}
           color={pnl.winRate >= 50 ? 'success' : 'danger'}
         />
         <StatCard
           label="Last 7 Days"
-          value={`${pnl.last7Days >= 0 ? '+' : ''}$${pnl.last7Days.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
+          value={`${pnl.last7Days >= 0 ? '+' : ''}$${Math.abs(pnl.last7Days).toLocaleString()}`}
           color={pnl.last7Days >= 0 ? 'success' : 'danger'}
         />
         <StatCard
-          label="Best Trade"
+          label="Alpha Trade"
           value={`+$${pnl.bestTrade.profit.toFixed(0)}`}
-          subValue={`${pnl.bestTrade.token} (+${pnl.bestTrade.percent.toFixed(0)}%)`}
+          subValue={`${pnl.bestTrade.token} entry`}
           color="success"
         />
         <StatCard
-          label="Worst Trade"
-          value={`$${pnl.worstTrade.loss.toFixed(0)}`}
-          subValue={`${pnl.worstTrade.token} (${pnl.worstTrade.percent.toFixed(0)}%)`}
+          label="Risk Event"
+          value={`-$${Math.abs(pnl.worstTrade.loss).toFixed(0)}`}
+          subValue={`${pnl.worstTrade.token} exit`}
           color="danger"
         />
       </div>
 
-      {/* Recent Trades */}
-      <div className="animate-fade-in" style={{ animationDelay: '0.2s' }}>
-        <h3 className="text-base font-semibold mb-4">Recent Trades</h3>
-        
-        <div className="space-y-2">
+      {/* 3. Recent Trades - Minimalist Terminal Style */}
+      <div className="pt-4">
+        <h3 className="text-[10px] font-jetbrains-mono text-gray-500 uppercase tracking-[0.4em] mb-6 px-2">Terminal History</h3>
+        <div className="space-y-3">
           {recentTrades.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              No trades found
+            <div className="text-center py-12 rounded-[2rem] border border-dashed border-white/5 text-[10px] font-jetbrains-mono text-gray-600 uppercase">
+              Waiting for on-chain events...
             </div>
           ) : (
             recentTrades.map((trade, index) => (
               <div
                 key={trade.hash}
-                className="flex items-center justify-between p-3.5 bg-bg-card rounded-xl border border-border animate-slide-in"
-                style={{ animationDelay: `${index * 0.05}s` }}
+                className="group flex items-center justify-between p-5 glass rounded-3xl border border-white/5 transition-all duration-500 hover:bg-white/[0.04] hover:border-white/10"
               >
-                <div className="flex items-center gap-3">
-                  {/* Trade type badge */}
-                  <div
-                    className={`w-9 h-9 rounded-lg flex items-center justify-center text-xs font-semibold ${
-                      trade.type === 'buy'
-                        ? 'bg-success/15 text-success'
-                        : 'bg-warning/15 text-warning'
-                    }`}
-                  >
+                <div className="flex items-center gap-4">
+                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-[10px] font-bold border ${trade.type === 'buy' ? 'bg-green-500/5 border-green-500/20 text-green-400' : 'bg-yellow-500/5 border-yellow-500/20 text-yellow-400'}`}>
                     {trade.type === 'buy' ? 'B' : 'S'}
                   </div>
-                  
                   <div>
-                    <div className="text-sm font-semibold">{trade.token}</div>
-                    <div className="text-xs text-gray-500 flex items-center gap-1">
-                      <ClockIcon className="w-3 h-3" />
+                    <div className="text-sm font-space-grotesk font-bold text-white tracking-tight">{trade.token}</div>
+                    <div className="text-[10px] font-jetbrains-mono text-gray-600 flex items-center gap-1.5 mt-0.5">
+                      <ClockIcon className="w-3 h-3 opacity-50" />
                       {trade.timeAgo}
                     </div>
                   </div>
                 </div>
                 
                 <div className="text-right">
-                  <div
-                    className={`text-sm font-semibold font-mono ${
-                      trade.pnl === null
-                        ? 'text-gray-400'
-                        : trade.pnl >= 0
-                        ? 'text-success'
-                        : 'text-danger'
-                    }`}
-                  >
-                    {trade.pnl === null
-                      ? '—'
-                      : `${trade.pnl >= 0 ? '+' : ''}$${trade.pnl.toFixed(2)}`}
+                  <div className={`text-sm font-space-grotesk font-bold tracking-tight ${trade.pnl === null ? 'text-gray-500' : trade.pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    {trade.pnl === null ? '—' : `${trade.pnl >= 0 ? '+' : '-'}$${Math.abs(trade.pnl).toFixed(2)}`}
                   </div>
-                  <div className="text-xs text-gray-500">
+                  <div className="text-[10px] font-jetbrains-mono text-gray-600 mt-0.5 uppercase tracking-tighter">
                     {trade.amount.toFixed(4)} ETH
                   </div>
                 </div>
@@ -133,23 +100,12 @@ export function PnLTab({ pnl, recentTrades }: PnLTabProps) {
         </div>
       </div>
 
-      {/* Upgrade CTA */}
-      <div
-        className="p-5 rounded-2xl border text-center animate-fade-in"
-        style={{
-          background: 'linear-gradient(135deg, rgba(0, 82, 255, 0.1) 0%, var(--bg-card) 100%)',
-          borderColor: 'rgba(0, 82, 255, 0.3)',
-          animationDelay: '0.3s',
-        }}
-      >
-        <div className="text-sm font-semibold mb-2">
-          Want full trade history & tax export?
-        </div>
-        <div className="text-xs text-gray-500 mb-4">
-          Upgrade to Pro for $5/month
-        </div>
-        <button className="px-6 py-2.5 bg-base-blue rounded-lg text-white text-sm font-semibold hover:bg-base-blue-light transition-colors">
-          Upgrade to Pro
+      {/* 4. Professional CTA */}
+      <div className="mt-8 p-8 rounded-[2.5rem] border border-white/5 bg-gradient-to-br from-base-blue/5 to-transparent text-center">
+        <p className="text-xs font-space-grotesk font-semibold text-white mb-1">Institutional Reporting</p>
+        <p className="text-[10px] font-jetbrains-mono text-gray-500 uppercase tracking-widest mb-6">Unlock Full History & Tax Exports</p>
+        <button className="w-full py-4 glass rounded-2xl text-[10px] font-jetbrains-mono font-bold uppercase tracking-[0.2em] text-white hover:bg-base-blue/20 hover:border-base-blue/30 transition-all active:scale-95">
+          Upgrade to Operator Pro
         </button>
       </div>
     </div>
