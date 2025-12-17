@@ -16,6 +16,7 @@ export async function GET() {
       subtitle: 'Track Your Base Activity',
       description: 'Track your onchain activity, check airdrop readiness, and see your real trading P&L.',
       iconUrl: `${ROOT_URL}/icon.png`,
+      imageUrl: `${ROOT_URL}/og-image.png`,
       splashImageUrl: `${ROOT_URL}/splash.png`,
       splashBackgroundColor: '#0A0B0D',
       homeUrl: ROOT_URL,
