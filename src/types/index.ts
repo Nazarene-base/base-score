@@ -4,7 +4,7 @@ export interface WalletStats {
   totalTransactions: number;
   uniqueProtocols: number;
   totalVolume: number;
-  firstTxDate: string;
+  firstTxDate: Date | null;
   daysActive: number;
   gasSpent: number;
   nftsMinted: number;
@@ -158,3 +158,24 @@ export const TRACKED_PROTOCOLS: Protocol[] = [
     category: 'social',
   },
 ];
+
+
+// Score breakdown interface for 3-pillar system
+export interface ScoreBreakdown {
+  total: number;
+  citizen: {
+    total: number;
+    walletAge: number;
+    transactionCount: number;
+  };
+  whale: {
+    total: number;
+    tradingVolume: number;
+    ethBalance: number;
+  };
+  explorer: {
+    total: number;
+    protocolDiversity: number;
+    identity: number;
+  };
+}

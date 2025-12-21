@@ -126,14 +126,22 @@ export function Dashboard() {
         {/* 6. Content Display */}
         <div className="animate-fade-in">
           {activeTab === 'score' ? (
-            <BaseScoreTab 
-              baseScore={baseScore} 
-              percentile={percentile} 
-              stats={stats} 
-              checklist={checklist} 
-            />
+            stats ? (
+              <BaseScoreTab
+                baseScore={baseScore}
+                percentile={percentile}
+                stats={stats}
+                checklist={checklist}
+              />
+            ) : (
+              <div className="text-center text-white py-20">Loading Base Score...</div>
+            )
           ) : (
-            <PnLTab pnl={pnl} recentTrades={recentTrades} />
+            stats ? (
+              <PnLTab pnl={pnl} recentTrades={recentTrades} />
+            ) : (
+              <div className="text-center text-white py-20">Loading Market Data...</div>
+            )
           )}
         </div>
 
