@@ -11,6 +11,9 @@ import {
   TRACKED_PROTOCOLS,
 } from '@/types';
 
+import { calculateBaseScore, getBaseScore } from '@/utils/calculateScore';
+import { formatPercentile, getPercentileEstimate } from '@/utils/getRankInfo';
+
 // Base network endpoint (part of Etherscan API V2)
 const BASESCAN_API = 'https://api.basescan.org/api';
 
@@ -24,6 +27,25 @@ if (typeof window !== 'undefined') {
   console.log('🌐 API Endpoint:', BASESCAN_API);
 }
 
+// Get ETH balance for an address
+async function getBalance(address: string): Promise<number> {
+  try {
+    const response = await fetch(
+      `${BASESCAN_API}?module=account&action=balance&address=${address}&tag=latest&apikey=${API_KEY}`
+    );
+    const data = await response.json();
+
+    if (data.status === '1' && data.result) {
+      // Convert Wei to ETH
+      return parseFloat(data.result) / 1e18;
+    }
+    return 0;
+  } catch (error) {
+    console.error('Error fetching balance:', error);
+    return 0;
+  }
+}
+
 // Helper to make API calls with Etherscan API V2
 async function fetchBaseScan<T>(params: Record<string, string>): Promise<T[]> {
   // Etherscan API V2 uses 'apikey' parameter
@@ -33,13 +55,13 @@ async function fetchBaseScan<T>(params: Record<string, string>): Promise<T[]> {
   });
 
   const url = `${BASESCAN_API}?${searchParams}`;
-  
+
   console.log('🔍 API Call:', params.module + '.' + params.action);
   console.log('📍 URL:', url.replace(API_KEY, 'KEY_HIDDEN'));
 
   try {
     const response = await fetch(url);
-    
+
     if (!response.ok) {
       console.error('❌ HTTP Error:', response.status, response.statusText);
       return [];
@@ -59,7 +81,7 @@ async function fetchBaseScan<T>(params: Record<string, string>): Promise<T[]> {
       console.log('✅ Success:', data.result.length, 'items');
       return data.result;
     }
-    
+
     if (data.status === '0') {
       console.warn('⚠️ API Warning:', data.message);
       // "No transactions found" is normal for new wallets
@@ -67,7 +89,7 @@ async function fetchBaseScan<T>(params: Record<string, string>): Promise<T[]> {
         console.log('ℹ️ Wallet has no transactions on Base network');
       }
     }
-    
+
     return [];
   } catch (error) {
     console.error('❌ Fetch Error:', error);
@@ -78,7 +100,7 @@ async function fetchBaseScan<T>(params: Record<string, string>): Promise<T[]> {
 // Get all transactions for an address
 export async function getTransactions(address: string): Promise<BaseScanTransaction[]> {
   console.log('📥 Fetching transactions for:', address);
-  
+
   const result = await fetchBaseScan<BaseScanTransaction>({
     module: 'account',
     action: 'txlist',
@@ -89,7 +111,7 @@ export async function getTransactions(address: string): Promise<BaseScanTransact
     offset: '1000',
     sort: 'desc',
   });
-  
+
   console.log(`✓ ${result.length} transactions retrieved`);
   return result;
 }
@@ -97,7 +119,7 @@ export async function getTransactions(address: string): Promise<BaseScanTransact
 // Get ERC-20 token transfers
 export async function getTokenTransfers(address: string): Promise<BaseScanTokenTransfer[]> {
   console.log('📥 Fetching token transfers for:', address);
-  
+
   const result = await fetchBaseScan<BaseScanTokenTransfer>({
     module: 'account',
     action: 'tokentx',
@@ -108,7 +130,7 @@ export async function getTokenTransfers(address: string): Promise<BaseScanTokenT
     offset: '1000',
     sort: 'desc',
   });
-  
+
   console.log(`✓ ${result.length} token transfers retrieved`);
   return result;
 }
@@ -116,7 +138,7 @@ export async function getTokenTransfers(address: string): Promise<BaseScanTokenT
 // Get ERC-721 NFT transfers
 export async function getNFTTransfers(address: string): Promise<BaseScanTokenTransfer[]> {
   console.log('📥 Fetching NFT transfers for:', address);
-  
+
   const result = await fetchBaseScan<BaseScanTokenTransfer>({
     module: 'account',
     action: 'tokennfttx',
@@ -127,20 +149,9 @@ export async function getNFTTransfers(address: string): Promise<BaseScanTokenTra
     offset: '500',
     sort: 'desc',
   });
-  
+
   console.log(`✓ ${result.length} NFT transfers retrieved`);
   return result;
-}
-
-// Get ETH balance
-export async function getBalance(address: string): Promise<string> {
-  const result = await fetchBaseScan<string>({
-    module: 'account',
-    action: 'balance',
-    address,
-    tag: 'latest',
-  });
-  return Array.isArray(result) ? '0' : (result as unknown as string);
 }
 
 // Calculate wallet statistics
@@ -162,7 +173,7 @@ export function calculateWalletStats(
       totalTransactions: 0,
       uniqueProtocols: 0,
       totalVolume: 0,
-      firstTxDate: new Date().toISOString(),
+      firstTxDate: new Date(),
       daysActive: 0,
       gasSpent: 0,
       nftsMinted: 0,
@@ -195,9 +206,9 @@ export function calculateWalletStats(
   const allTxs = [...transactions, ...tokenTransfers].sort(
     (a, b) => Number(a.timeStamp) - Number(b.timeStamp)
   );
-  const firstTxDate = allTxs.length > 0 
-    ? new Date(Number(allTxs[0].timeStamp) * 1000).toISOString()
-    : new Date().toISOString();
+  const firstTxDate = allTxs.length > 0
+    ? new Date(Number(allTxs[0].timeStamp) * 1000)
+    : new Date();
 
   // Unique days active
   const uniqueDays = new Set(
@@ -211,7 +222,7 @@ export function calculateWalletStats(
   const bridgeContracts = TRACKED_PROTOCOLS
     .filter((p) => p.category === 'bridge')
     .flatMap((p) => p.contracts.map((c) => c.toLowerCase()));
-  
+
   const bridgeTransactions = transactions.filter((tx) =>
     bridgeContracts.includes(tx.to?.toLowerCase() || '')
   ).length;
@@ -238,7 +249,7 @@ export function generateChecklist(
   nftTransfers: BaseScanTokenTransfer[]
 ): ChecklistItem[] {
   console.log('📋 Generating checklist...');
-  
+
   // Get all contract interactions
   const allContracts = new Set([
     ...transactions.map(tx => tx.to?.toLowerCase() || ''),
@@ -250,15 +261,17 @@ export function generateChecklist(
 
   // Check each protocol
   for (const protocol of TRACKED_PROTOCOLS) {
-    const hasInteracted = protocol.contracts.some(contract => 
+    const hasInteracted = protocol.contracts.some(contract =>
       allContracts.has(contract.toLowerCase())
     );
-    
+
     checklist.push({
-      name: protocol.name,
+      id: checklist.length + 1,
+      task: `Use ${protocol.name}`,
+      description: `Interact with ${protocol.name} on Base`,
       completed: hasInteracted,
-      url: getProtocolUrl(protocol.name),
-      category: protocol.category,
+      link: getProtocolUrl(protocol.name),
+      points: 50,
     });
   }
 
@@ -282,53 +295,13 @@ function getProtocolUrl(name: string): string {
   return urls[name] || 'https://base.org';
 }
 
-// Calculate Base Score (0-1000)
-export function calculateBaseScore(
-  stats: WalletStats,
-  checklist: ChecklistItem[]
-): { score: number; percentile: number } {
-  let score = 0;
-
-  // Checklist completion (40% weight = 400 points)
-  const completed = checklist.filter(item => item.completed).length;
-  score += (completed / checklist.length) * 400;
-
-  // Transaction activity (10% weight = 100 points)
-  score += Math.min(stats.totalTransactions / 5, 100);
-
-  // Protocol diversity (7.5% weight = 75 points)
-  score += Math.min(stats.uniqueProtocols * 5, 75);
-
-  // Days active (5% weight = 50 points)
-  score += Math.min(stats.daysActive, 50);
-
-  // Volume (10% weight = 100 points)
-  score += Math.min(stats.totalVolume / 100, 100);
-
-  // NFT activity (5% weight = 50 points)
-  score += Math.min(stats.nftsMinted * 5, 50);
-
-  // Bridge usage bonus (2.5% weight = 25 points)
-  score += Math.min(stats.bridgeTransactions * 5, 25);
-
-  // Round and cap at 1000
-  score = Math.min(Math.round(score), 1000);
-
-  // Estimate percentile (simplified)
-  const percentile = Math.min(Math.round((score / 1000) * 100), 99);
-
-  console.log(`🎯 Score: ${score}/1000 (Top ${100 - percentile}%)`);
-
-  return { score, percentile };
-}
-
 // Parse recent trades
 export function parseRecentTrades(
   tokenTransfers: BaseScanTokenTransfer[],
   walletAddress: string
 ): Trade[] {
   console.log('💱 Parsing trades...');
-  
+
   const trades: Trade[] = [];
   const now = Date.now();
 
@@ -388,7 +361,7 @@ export async function fetchWalletData(address: string): Promise<{
 
   // Fetch all data in parallel
   console.log('⏳ Fetching data from Etherscan API V2...');
-  
+
   const [transactions, tokenTransfers, nftTransfers] = await Promise.all([
     getTransactions(address),
     getTokenTransfers(address),
@@ -397,19 +370,29 @@ export async function fetchWalletData(address: string): Promise<{
 
   console.log('✅ All API calls complete');
 
+  // Fetch ETH balance
+  const ethBalance = await getBalance(address);
+
   // Calculate everything
   const stats = calculateWalletStats(transactions, tokenTransfers, nftTransfers);
   const checklist = generateChecklist(transactions, tokenTransfers, nftTransfers);
-  const { score, percentile } = calculateBaseScore(stats, checklist);
+
+  // NEW: Use 3-pillar scoring
+  const scoreBreakdown = calculateBaseScore(stats, ethBalance);
+
+  const baseScore = scoreBreakdown.total;
+
+  // NEW: Dynamic percentile
+  const percentile = getPercentileEstimate(baseScore);
   const recentTrades = parseRecentTrades(tokenTransfers, address);
 
   console.log('🎉 Wallet data ready!');
-  console.log('📊 Summary:', { score, percentile, txs: stats.totalTransactions });
+  console.log('📊 Summary:', { baseScore, percentile, txs: stats.totalTransactions });
 
   return {
     stats,
     checklist,
-    baseScore: score,
+    baseScore,
     percentile,
     recentTrades,
   };

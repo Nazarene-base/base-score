@@ -6,11 +6,20 @@ import { ArrowUpIcon, ArrowDownIcon, ClockIcon } from './Icons';
 import type { PnLData, Trade } from '@/types';
 
 interface PnLTabProps {
-  pnl: PnLData;
+  pnl: PnLData | null;
   recentTrades: Trade[];
 }
 
 export function PnLTab({ pnl, recentTrades }: PnLTabProps) {
+  // Handle null pnl case
+  if (!pnl) {
+    return (
+      <div className="text-center text-white py-20">
+        Loading Market Data...
+      </div>
+    );
+  }
+
   const isProfit = pnl.totalPnL >= 0;
 
   return (
@@ -19,7 +28,7 @@ export function PnLTab({ pnl, recentTrades }: PnLTabProps) {
       <div className="relative group overflow-hidden rounded-[2.5rem] border border-white/10 bg-white/[0.02] p-10 backdrop-blur-3xl transition-all duration-700 hover:bg-white/[0.04]">
         {/* Professional ambient glow based on profit status */}
         <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 blur-[100px] -z-10 opacity-20 ${isProfit ? 'bg-green-500' : 'bg-red-500'}`} />
-        
+
         <div className="text-center">
           <p className="text-[10px] font-jetbrains-mono text-gray-500 uppercase tracking-[0.4em] mb-4">Realized Performance</p>
           <div className={`text-6xl font-space-grotesk font-bold tracking-tighter flex items-center justify-center gap-3 ${isProfit ? 'text-green-400' : 'text-red-400'}`}>
@@ -85,7 +94,7 @@ export function PnLTab({ pnl, recentTrades }: PnLTabProps) {
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="text-right">
                   <div className={`text-sm font-space-grotesk font-bold tracking-tight ${trade.pnl === null ? 'text-gray-500' : trade.pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                     {trade.pnl === null ? '—' : `${trade.pnl >= 0 ? '+' : '-'}$${Math.abs(trade.pnl).toFixed(2)}`}

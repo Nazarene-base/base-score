@@ -28,8 +28,8 @@ export function BaseScoreTab({
   const progressPercent = (completedTasks / totalTasks) * 100;
 
   // Format first transaction date
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
+  const formatDate = (date: Date | null) => {
+    if (!date) return 'N/A';
     return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
   };
 
