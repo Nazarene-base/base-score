@@ -64,7 +64,8 @@ export function useWalletData(): UseWalletDataResult {
 
     setIsLoading(true);
     setError(null);
-    setStats(INITIAL_STATS); // Reset to empty skeleton
+    // setStats(INITIAL_STATS); // Don't reset to empty, keep null to show skeletons until Step 1
+
 
     try {
       // STEP 1: FAST (Alchemy)
