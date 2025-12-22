@@ -101,6 +101,8 @@ export function useWalletData(): UseWalletDataResult {
         history.nftTransfers,
         {} // No prices yet
       );
+      // MERGE PREVENTING REGRESSION: Use higher of Fast (Nonce) vs History (List)
+      step2Stats.totalTransactions = Math.max(step2Stats.totalTransactions, fastData.txCount);
       step2Stats.basename = fastData.basename; // Keep basename
 
       // Update UI
@@ -137,6 +139,7 @@ export function useWalletData(): UseWalletDataResult {
         prices
       );
       finalStats.basename = fastData.basename;
+      finalStats.totalTransactions = Math.max(finalStats.totalTransactions, fastData.txCount);
 
       // Final Update
       setStats(finalStats);

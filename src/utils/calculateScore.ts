@@ -2,19 +2,19 @@ import { WalletStats } from '@/types';
 
 /**
  * BASE SCORE - 3-PILLAR REPUTATION SYSTEM
- * Total: 1000 points
+ * Total: 100 points
  * 
- * PILLAR 1: CITIZEN (Loyalty) - 300 points
- *   - Wallet Age: 10pts per month since first tx (max 150pts = 15 months)
- *   - Transaction Count: 1pt per transaction (max 150pts = 150 txs)
+ * PILLAR 1: CITIZEN (Loyalty) - 30 points
+ *   - Wallet Age: 1pt per month (max 15pts = 15 months)
+ *   - Transaction Count: 1pt per 5 transactions (max 15pts = 75 txs)
  * 
- * PILLAR 2: WHALE (Wealth) - 300 points
- *   - Trading Volume: 1pt per $100 swapped (max 200pts = $20,000)
- *   - ETH Balance: 10pts per 0.1 ETH (max 100pts = 1 ETH)
+ * PILLAR 2: WHALE (Wealth) - 30 points
+ *   - Trading Volume: 1pt per $1000 swapped (max 20pts = $20,000)
+ *   - ETH Balance: 1pt per 0.1 ETH (max 10pts = 1 ETH)
  * 
- * PILLAR 3: EXPLORER (Action) - 400 points
- *   - Protocol Diversity: 50pts per unique protocol (max 300pts = 6 protocols)
- *   - Identity: Base name OR NFT on Base = 100pts
+ * PILLAR 3: EXPLORER (Action) - 40 points
+ *   - Protocol Diversity: 5pts per unique protocol (max 30pts = 6 protocols)
+ *   - Identity: Base name OR NFT on Base = 10pts
  */
 
 interface ScoreBreakdown {
@@ -41,11 +41,11 @@ interface ScoreBreakdown {
  */
 function calculateWalletAgeDays(firstTxDate: Date | null): number {
   if (!firstTxDate) return 0;
-  
+
   const now = new Date();
   const diffTime = Math.abs(now.getTime() - firstTxDate.getTime());
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  
+
   return diffDays;
 }
 
@@ -54,26 +54,26 @@ function calculateWalletAgeDays(firstTxDate: Date | null): number {
  */
 function calculateWalletAgeMonths(firstTxDate: Date | null): number {
   if (!firstTxDate) return 0;
-  
+
   const days = calculateWalletAgeDays(firstTxDate);
   const months = Math.floor(days / 30);
-  
+
   return months;
 }
 
 /**
- * PILLAR 1: CITIZEN SCORE (Loyalty - 300pts)
- * - Wallet Age: 10pts per month (max 150pts = 15 months)
- * - Transaction Count: 1pt per tx (max 150pts = 150 txs)
+ * PILLAR 1: CITIZEN SCORE (Loyalty - 30pts)
+ * - Wallet Age: 1pt per month (max 15pts = 15 months)
+ * - Transaction Count: 1pt per 5 txs (max 15pts = 75 txs)
  */
 function calculateCitizenScore(stats: WalletStats): { total: number; walletAge: number; transactionCount: number } {
-  // Wallet Age: 10pts per month, max 150pts
+  // Wallet Age: 1pt per month, max 15pts
   const months = calculateWalletAgeMonths(stats.firstTxDate);
-  const walletAgeScore = Math.min(months * 10, 150);
-  
-  // Transaction Count: 1pt per tx, max 150pts
-  const transactionScore = Math.min(stats.totalTransactions, 150);
-  
+  const walletAgeScore = Math.min(months, 15);
+
+  // Transaction Count: 1pt per 5 txs, max 15pts
+  const transactionScore = Math.min(Math.floor(stats.totalTransactions / 5), 15);
+
   return {
     total: walletAgeScore + transactionScore,
     walletAge: walletAgeScore,
@@ -82,19 +82,19 @@ function calculateCitizenScore(stats: WalletStats): { total: number; walletAge: 
 }
 
 /**
- * PILLAR 2: WHALE SCORE (Wealth - 300pts)
- * - Trading Volume: 1pt per $100 swapped (max 200pts = $20,000)
- * - ETH Balance: 10pts per 0.1 ETH (max 100pts = 1 ETH)
+ * PILLAR 2: WHALE SCORE (Wealth - 30pts)
+ * - Trading Volume: 1pt per $1000 swapped (max 20pts = $20,000)
+ * - ETH Balance: 1pt per 0.1 ETH (max 10pts = 1 ETH)
  */
 function calculateWhaleScore(stats: WalletStats, ethBalance: number): { total: number; tradingVolume: number; ethBalance: number } {
-  // Trading Volume: 1pt per $100, max 200pts ($20,000)
-  const volumeInHundreds = Math.floor(stats.totalVolume / 100);
-  const volumeScore = Math.min(volumeInHundreds, 200);
-  
-  // ETH Balance: 10pts per 0.1 ETH, max 100pts (1 ETH)
+  // Trading Volume: 1pt per $1000, max 20pts ($20,000)
+  const volumeInThousands = Math.floor(stats.totalVolume / 1000);
+  const volumeScore = Math.min(volumeInThousands, 20);
+
+  // ETH Balance: 1pt per 0.1 ETH, max 10pts (1 ETH)
   const ethInTenths = Math.floor(ethBalance / 0.1);
-  const balanceScore = Math.min(ethInTenths * 10, 100);
-  
+  const balanceScore = Math.min(ethInTenths, 10);
+
   return {
     total: volumeScore + balanceScore,
     tradingVolume: volumeScore,
@@ -103,18 +103,18 @@ function calculateWhaleScore(stats: WalletStats, ethBalance: number): { total: n
 }
 
 /**
- * PILLAR 3: EXPLORER SCORE (Action - 400pts)
- * - Protocol Diversity: 50pts per unique protocol (max 300pts = 6 protocols)
- * - Identity: Base name OR NFT on Base = 100pts
+ * PILLAR 3: EXPLORER SCORE (Action - 40pts)
+ * - Protocol Diversity: 5pts per unique protocol (max 30pts = 6 protocols)
+ * - Identity: Base name OR NFT on Base = 10pts
  */
 function calculateExplorerScore(stats: WalletStats): { total: number; protocolDiversity: number; identity: number } {
-  // Protocol Diversity: 50pts each, max 300pts (6 protocols)
-  const protocolScore = Math.min(stats.uniqueProtocols * 50, 300);
-  
-  // Identity: 100pts if has NFT on Base (includes Base names)
+  // Protocol Diversity: 5pts each, max 30pts (6 protocols)
+  const protocolScore = Math.min(stats.uniqueProtocols * 5, 30);
+
+  // Identity: 10pts if has NFT on Base (includes Base names)
   // Note: stats.nftsMinted covers both regular NFTs and Base names
-  const identityScore = stats.nftsMinted > 0 ? 100 : 0;
-  
+  const identityScore = (stats.nftsMinted > 0 || stats.basename) ? 10 : 0;
+
   return {
     total: protocolScore + identityScore,
     protocolDiversity: protocolScore,
@@ -129,11 +129,11 @@ export function calculateBaseScore(stats: WalletStats, ethBalance: number = 0): 
   const citizen = calculateCitizenScore(stats);
   const whale = calculateWhaleScore(stats, ethBalance);
   const explorer = calculateExplorerScore(stats);
-  
+
   const total = citizen.total + whale.total + explorer.total;
-  
+
   return {
-    total: Math.min(total, 1000), // Cap at 1000
+    total: Math.min(total, 100), // Cap at 100
     citizen,
     whale,
     explorer

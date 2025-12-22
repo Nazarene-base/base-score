@@ -9,7 +9,9 @@ import { PnLTab } from './PnLTab';
 import ScoreHero from './ScoreCard';
 import { RefreshIcon } from './Icons';
 
-type TabId = 'score' | 'pnl';
+import { BottomNav } from './BottomNav';
+
+type TabId = 'score' | 'pnl' | 'profile';
 
 export function Dashboard() {
   const [activeTab, setActiveTab] = useState<TabId>('score');
@@ -42,14 +44,10 @@ export function Dashboard() {
 
   const shortAddress = address ? `${address.slice(0, 6)}...${address.slice(-4)}` : '';
 
-  // Removed blocking loader to show Skeletons instead
-  // The 'isLoading' state is now passed to components
-
-
   return (
-    <div className="min-h-screen bg-bg-primary text-white selection:bg-base-blue">
+    <div className="min-h-screen bg-bg-primary text-white selection:bg-base-blue pb-[calc(80px+env(safe-area-inset-bottom))]">
       {/* 2. Glassmorphism Header */}
-      <header className="sticky top-0 z-50 px-6 py-4 flex justify-between items-center backdrop-blur-xl border-b border-white/[0.03] bg-bg-primary/80">
+      <header className="sticky top-0 z-40 px-6 py-4 flex justify-between items-center backdrop-blur-xl border-b border-white/[0.03] bg-bg-primary/80">
         <div className="flex items-center gap-3">
           <div className="w-2 h-2 rounded-full bg-base-blue shadow-[0_0_10px_rgba(0,82,255,0.8)]" />
           <span className="font-space-grotesk font-bold tracking-tighter text-sm uppercase">Base Score</span>
@@ -59,15 +57,15 @@ export function Dashboard() {
             <RefreshIcon className="w-4 h-4" />
           </button>
           <button onClick={() => disconnect()} className="text-[10px] font-jetbrains-mono text-gray-500 hover:text-white transition-colors">
-            {shortAddress} [DISCONNECT]
+            {shortAddress} [EXIT]
           </button>
         </div>
       </header>
 
-      <main className="max-w-lg mx-auto px-6 py-10 pb-24">
+      <main className="max-w-lg mx-auto px-5 py-6 space-y-8 animate-fade-in">
         {/* Error State */}
         {error && (
-          <div className="mb-8 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-500 text-sm font-jetbrains-mono flex items-center gap-3 animate-fade-in">
+          <div className="mb-8 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-500 text-sm font-jetbrains-mono flex items-center gap-3">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 flex-shrink-0">
               <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
             </svg>
@@ -77,11 +75,11 @@ export function Dashboard() {
 
         {/* 3. Professional Identity Section */}
         {farcasterUser && (
-          <div className="flex items-center gap-4 mb-14 animate-fade-in">
+          <div className="flex items-center gap-4">
             <div className="relative">
               <img
                 src={farcasterUser.pfpUrl}
-                className="w-12 h-12 rounded-full grayscale hover:grayscale-0 transition-all duration-1000 border border-white/10"
+                className="w-12 h-12 rounded-full border border-white/10"
                 alt="pfp"
               />
               <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-bg-primary rounded-full flex items-center justify-center">
@@ -89,41 +87,21 @@ export function Dashboard() {
               </div>
             </div>
             <div>
-              <p className="text-[9px] font-jetbrains-mono text-gray-500 uppercase tracking-[0.2em]">Verified Operator</p>
-              <h2 className="text-xl font-space-grotesk font-bold tracking-tight">@{farcasterUser.username}</h2>
+              <p className="text-[9px] font-jetbrains-mono text-gray-500 uppercase tracking-[0.2em] mb-1">Authenticated</p>
+              <h2 className="text-xl font-space-grotesk font-bold tracking-tight leading-none">@{farcasterUser.username}</h2>
             </div>
           </div>
         )}
 
         {/* 4. The Hero Component */}
         {activeTab === 'score' && (
-          <div className="mb-14">
+          <div className="">
             <ScoreHero score={baseScore} percentile={percentile} isLoading={isLoading} />
           </div>
         )}
 
-        {/* 5. Modern Minimalist Tab Navigation */}
-        <nav className="flex gap-10 border-b border-white/[0.05] mb-12">
-          {[
-            { id: 'score' as const, label: 'Analytics' },
-            { id: 'pnl' as const, label: 'Market P&L' },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`pb-4 text-[10px] font-jetbrains-mono uppercase tracking-[0.3em] transition-all relative ${activeTab === tab.id ? 'text-white' : 'text-gray-600 hover:text-gray-300'
-                }`}
-            >
-              {tab.label}
-              {activeTab === tab.id && (
-                <div className="absolute bottom-0 left-0 w-full h-[1.5px] bg-base-blue shadow-[0_0_8px_rgba(0,82,255,0.5)]" />
-              )}
-            </button>
-          ))}
-        </nav>
-
-        {/* 6. Content Display */}
-        <div className="animate-fade-in">
+        {/* 6. Content Display (Dynamic) */}
+        <div className="min-h-[300px]">
           {activeTab === 'score' ? (
             <BaseScoreTab
               baseScore={baseScore}
@@ -147,28 +125,35 @@ export function Dashboard() {
             stats ? (
               <PnLTab pnl={pnl} recentTrades={recentTrades} />
             ) : (
-              <div className="text-center text-white py-20">Loading Market Data...</div>
+              <div className="text-center text-white py-20 font-space-grotesk opacity-50">Loading Market Data...</div>
             )
           )}
         </div>
 
         {/* 7. Institutional-Grade Sharing */}
-        <div className="mt-16 pt-8 border-t border-white/[0.03] flex justify-center">
+        <div className="pt-8 border-t border-white/[0.03] flex justify-center pb-8">
           <button
             onClick={() => {
-              const shareText = encodeURIComponent(`Base Score: ${baseScore} | Percentile: ${percentile}\n\nAnalyzing my on-chain footprint on @base.`);
+              const shareText = encodeURIComponent(`Base Score: ${baseScore}/100 | Percentile: ${percentile}\n\nAnalyzing my on-chain footprint on @base.`);
               const shareUrl = encodeURIComponent(`https://base-score-neon.vercel.app`);
               window.open(`https://warpcast.com/~/compose?text=${shareText}&embeds[]=${shareUrl}`, '_blank');
             }}
-            className="group flex flex-col items-center gap-3"
+            className="group flex flex-col items-center gap-3 opacity-60 hover:opacity-100 transition-opacity"
           >
-            <span className="text-[10px] font-jetbrains-mono text-gray-500 group-hover:text-white transition-colors uppercase tracking-[0.3em]">
-              Dispatch to Warpcast
+            <span className="text-[10px] font-jetbrains-mono text-gray-400 group-hover:text-white transition-colors uppercase tracking-[0.3em]">
+              Dispatch Report
             </span>
             <div className="h-[1px] w-12 bg-white/10 group-hover:w-24 group-hover:bg-base-blue transition-all duration-500" />
           </button>
         </div>
       </main>
+
+      {/* NEW: Bottom Navigation */}
+      <BottomNav
+        activeTab={activeTab as 'score' | 'pnl'}
+        visible={!!stats || isLoading}
+        onChange={(tab) => setActiveTab(tab)}
+      />
     </div>
   );
 }

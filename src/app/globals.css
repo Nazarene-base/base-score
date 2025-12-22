@@ -4,17 +4,25 @@
 
 /* CSS Variables for theming */
 :root {
+  /* Deep Space Theme */
   --base-blue: #0052FF;
-  --base-blue-light: #3B7FFF;
-  --base-blue-dark: #0039B3;
-  --bg-primary: #0A0B0D;
-  --bg-secondary: #12141A;
-  --bg-tertiary: #1A1D26;
-  --bg-card: #16181F;
-  --border: #2D3139;
+  --base-blue-bright: #3B7FFF;
+  --base-blue-dim: #0039B3;
+  
+  /* Richer Dark Backgrounds (Blue-tinted blacks) */
+  --bg-primary: #050608;    /* Deepest Void */
+  --bg-secondary: #0A0C10;  /* Card Background */
+  --bg-tertiary: #14161F;   /* Hover/Highlight */
+  
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-surface: rgba(255, 255, 255, 0.03);
+  
   --success: #00D395;
   --warning: #FFB800;
   --danger: #FF5252;
+  
+  /* Mobile Safe Areas */
+  --safe-bottom: env(safe-area-inset-bottom, 20px);
 }
 
 /* Base styles */
