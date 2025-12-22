@@ -13,6 +13,33 @@ import { getTokenPrices } from '@/lib/price'; // Import direct if needed
 import type { WalletStats, ChecklistItem, Trade, PnLData } from '@/types';
 import { generateChecklist } from '@/lib/basescan';
 
+// CACHING: 5-minute cache to reduce API calls on rapid refreshes
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+interface CacheEntry {
+  fastData: any;
+  history: any;
+  timestamp: number;
+}
+const walletCache: Map<string, CacheEntry> = new Map();
+
+function getCachedData(address: string): CacheEntry | null {
+  const cached = walletCache.get(address.toLowerCase());
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+    console.log('✅ Using cached data (age:', Math.round((Date.now() - cached.timestamp) / 1000), 'seconds)');
+    return cached;
+  }
+  return null;
+}
+
+function setCachedData(address: string, fastData: any, history: any) {
+  walletCache.set(address.toLowerCase(), {
+    fastData,
+    history,
+    timestamp: Date.now()
+  });
+  console.log('💾 Cached wallet data for 5 minutes');
+}
+
 interface UseWalletDataResult {
   isLoading: boolean;
   error: string | null;
@@ -23,6 +50,7 @@ interface UseWalletDataResult {
   recentTrades: Trade[];
   pnl: PnLData | null;
   refetch: () => void;
+  lastFetched: Date | null; // NEW: For UI freshness indicator
 }
 
 const INITIAL_STATS: WalletStats = {
@@ -50,6 +78,7 @@ export function useWalletData(): UseWalletDataResult {
   const [baseScore, setBaseScore] = useState(0);
   const [percentile, setPercentile] = useState(0);
   const [recentTrades, setRecentTrades] = useState<Trade[]>([]);
+  const [lastFetched, setLastFetched] = useState<Date | null>(null); // NEW: Freshness indicator
 
   const fetchData = useCallback(async () => {
     if (!address || !isConnected) {
@@ -112,7 +141,8 @@ export function useWalletData(): UseWalletDataResult {
         ...calculatedStats,
         totalTransactions: alchemyTxCount,        // FIXED: From Alchemy
         firstTxDate: authoritativeFirstTxDate,    // FIXED: From dedicated API
-        basename: fastData.basename
+        basename: fastData.basename,
+        isApproximate: history.isApproximate      // NEW: Flag for UI
       };
 
       // Update UI
@@ -154,7 +184,8 @@ export function useWalletData(): UseWalletDataResult {
         ...pricedStats,
         totalTransactions: alchemyTxCount,        // FIXED: From Alchemy
         firstTxDate: authoritativeFirstTxDate,    // FIXED: From dedicated API
-        basename: fastData.basename
+        basename: fastData.basename,
+        isApproximate: history.isApproximate      // NEW: Flag for UI
       };
 
       // Final Update
@@ -162,6 +193,10 @@ export function useWalletData(): UseWalletDataResult {
       const finalScore = calculateBaseScore(finalStats, fastData.ethBalance);
       setBaseScore(finalScore.total);
       setPercentile(getPercentileEstimate(finalScore.total));
+
+      // CACHING: Store data and update freshness timestamp
+      setCachedData(address, fastData, history);
+      setLastFetched(new Date());
 
       // TODO: Parse recent trades implementation needs extract
       // setRecentTrades(parseRecentTrades(...)) - Assuming it's not exported or needs refactor
@@ -202,6 +237,7 @@ export function useWalletData(): UseWalletDataResult {
     recentTrades,
     pnl,
     refetch: fetchData,
+    lastFetched, // NEW: For UI freshness indicator
   };
 }
 

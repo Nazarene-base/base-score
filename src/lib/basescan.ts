@@ -101,23 +101,45 @@ async function fetchBaseScan<T>(params: Record<string, string>): Promise<T[]> {
   }
 }
 
-// Get all transactions for an address
-export async function getTransactions(address: string): Promise<BaseScanTransaction[]> {
-  console.log('📥 Fetching transactions for:', address);
+// Get all transactions for an address (multi-page, up to 5000)
+// Returns { transactions, isApproximate } where isApproximate=true if we hit the limit
+export async function getTransactions(address: string): Promise<{ data: BaseScanTransaction[], isApproximate: boolean }> {
+  console.log('📥 Fetching transactions (multi-page) for:', address);
 
-  const result = await fetchBaseScan<BaseScanTransaction>({
-    module: 'account',
-    action: 'txlist',
-    address,
-    startblock: '0',
-    endblock: '99999999',
-    page: '1',
-    offset: '1000',
-    sort: 'desc',
-  });
+  const MAX_PAGES = 5;
+  const PAGE_SIZE = 1000;
+  let allTransactions: BaseScanTransaction[] = [];
+  let isApproximate = false;
 
-  console.log(`✓ ${result.length} transactions retrieved`);
-  return result;
+  for (let page = 1; page <= MAX_PAGES; page++) {
+    const result = await fetchBaseScan<BaseScanTransaction>({
+      module: 'account',
+      action: 'txlist',
+      address,
+      startblock: '0',
+      endblock: '99999999',
+      page: String(page),
+      offset: String(PAGE_SIZE),
+      sort: 'desc',
+    });
+
+    allTransactions = [...allTransactions, ...result];
+    console.log(`📄 Page ${page}: ${result.length} transactions`);
+
+    // If we got fewer than PAGE_SIZE, we've reached the end
+    if (result.length < PAGE_SIZE) {
+      break;
+    }
+
+    // If we fetched all pages and still getting full pages, data is approximate
+    if (page === MAX_PAGES && result.length === PAGE_SIZE) {
+      isApproximate = true;
+      console.log('⚠️ Wallet has >5000 transactions - data is approximate');
+    }
+  }
+
+  console.log(`✓ Total: ${allTransactions.length} transactions${isApproximate ? ' (approximate)' : ''}`);
+  return { data: allTransactions, isApproximate };
 }
 
 // NEW: Get ONLY the first (oldest) transaction for accurate wallet age
@@ -429,12 +451,18 @@ export async function fetchFastData(address: string) {
 
 export async function fetchHistoryData(address: string) {
   console.log('📜 Fetching HISTORY data (BaseScan)...');
-  const [transactions, tokenTransfers, nftTransfers] = await Promise.all([
+  const [txResult, tokenTransfers, nftTransfers] = await Promise.all([
     getTransactions(address),
     getTokenTransfers(address),
     getNFTTransfers(address),
   ]);
-  return { transactions, tokenTransfers, nftTransfers };
+
+  return {
+    transactions: txResult.data,
+    tokenTransfers,
+    nftTransfers,
+    isApproximate: txResult.isApproximate // NEW: Flag for UI
+  };
 }
 
 // Main data fetching function (Legacy/Full)

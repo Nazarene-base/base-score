@@ -12,6 +12,7 @@ export interface WalletStats {
   basename?: string | null;
   tokenCount: number;
   hasDexActivity: boolean;
+  isApproximate?: boolean; // NEW: True if data is based on partial history (>5000 txs)
 }
 
 export interface Trade {
