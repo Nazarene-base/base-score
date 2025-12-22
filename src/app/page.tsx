@@ -7,7 +7,7 @@ import { ConnectScreen } from '@/components/ConnectScreen';
 import { Dashboard } from '@/components/Dashboard';
 
 export default function HomePage() {
-  const { isConnected, isConnecting } = useAccount();
+  const { address, isConnected, isConnecting } = useAccount();
   const [farcasterUser, setFarcasterUser] = useState<any>(null);
 
   useEffect(() => {
@@ -16,6 +16,9 @@ export default function HomePage() {
       const context = await sdk.context;
       if (context?.user) {
         setFarcasterUser(context.user);
+        console.log('🎭 Farcaster User:', context.user.username);
+        // Log full context for debugging (type-safe)
+        console.log('🔗 Farcaster Context:', JSON.stringify(context.user, null, 2));
       }
 
       // 2. Tell Farcaster we are ready to show the app
@@ -24,6 +27,16 @@ export default function HomePage() {
 
     init();
   }, []);
+
+  // DEBUG: Log connection state
+  useEffect(() => {
+    console.log('🔌 Wallet Connection State:', {
+      isConnected,
+      isConnecting,
+      address: address || 'NO ADDRESS',
+      hasValidAddress: !!address && address.startsWith('0x')
+    });
+  }, [isConnected, isConnecting, address]);
 
   // Show loading while checking connection
   if (isConnecting) {
@@ -34,15 +47,18 @@ export default function HomePage() {
     );
   }
 
+  // IMPORTANT: Only show Dashboard if we have BOTH connection AND valid address
+  const hasValidConnection = isConnected && address && address.startsWith('0x');
+
   return (
-    <div className="min-h-screen bg-bg-primary text-white p-6">
-      {/* Personalized Greeting for Farcaster Users */}
-      {farcasterUser && (
-        <div className="flex items-center gap-3 mb-8 animate-fade-in">
+    <div className="min-h-screen bg-bg-primary text-white">
+      {/* Personalized Greeting for Farcaster Users (only on Connect screen) */}
+      {!hasValidConnection && farcasterUser && (
+        <div className="flex items-center gap-3 p-6 animate-fade-in">
           {farcasterUser.pfpUrl && (
-            <img 
-              src={farcasterUser.pfpUrl} 
-              alt="Profile" 
+            <img
+              src={farcasterUser.pfpUrl}
+              alt="Profile"
               className="w-10 h-10 rounded-full border border-white/10 shadow-sm"
             />
           )}
@@ -55,8 +71,8 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Main Logic */}
-      {isConnected ? <Dashboard /> : <ConnectScreen />}
+      {/* Main Logic - REQUIRE valid address */}
+      {hasValidConnection ? <Dashboard /> : <ConnectScreen />}
     </div>
   );
 }

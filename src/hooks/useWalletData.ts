@@ -81,7 +81,15 @@ export function useWalletData(): UseWalletDataResult {
   const [lastFetched, setLastFetched] = useState<Date | null>(null); // NEW: Freshness indicator
 
   const fetchData = useCallback(async () => {
+    // DEBUG: Log address state
+    console.log('📊 useWalletData.fetchData called:', {
+      address: address || 'NO ADDRESS',
+      isConnected,
+      hasData: !!address && isConnected
+    });
+
     if (!address || !isConnected) {
+      console.log('⚠️ Skipping fetch - no valid address or not connected');
       setStats(null);
       setChecklist([]);
       setBaseScore(0);
@@ -91,6 +99,7 @@ export function useWalletData(): UseWalletDataResult {
       return;
     }
 
+    console.log('✅ Fetching data for address:', address);
     setIsLoading(true);
     setError(null);
     // setStats(INITIAL_STATS); // Don't reset to empty, keep null to show skeletons until Step 1
