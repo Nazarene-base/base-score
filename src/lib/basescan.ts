@@ -120,6 +120,33 @@ export async function getTransactions(address: string): Promise<BaseScanTransact
   return result;
 }
 
+// NEW: Get ONLY the first (oldest) transaction for accurate wallet age
+// This uses sort=asc and offset=1 to get exactly one result - the first ever tx
+export async function fetchFirstTransactionDate(address: string): Promise<Date | null> {
+  console.log('📅 Fetching first transaction date for:', address);
+
+  const result = await fetchBaseScan<BaseScanTransaction>({
+    module: 'account',
+    action: 'txlist',
+    address,
+    startblock: '0',
+    endblock: '99999999',
+    page: '1',
+    offset: '1',  // Only fetch 1 transaction
+    sort: 'asc',  // Oldest first
+  });
+
+  if (result.length > 0 && result[0].timeStamp) {
+    const timestamp = parseInt(result[0].timeStamp, 10);
+    const date = new Date(timestamp * 1000);
+    console.log('✅ First transaction date:', date.toISOString());
+    return date;
+  }
+
+  console.log('ℹ️ No transactions found - wallet is new');
+  return null;
+}
+
 // Get ERC-20 token transfers
 export async function getTokenTransfers(address: string): Promise<BaseScanTokenTransfer[]> {
   console.log('📥 Fetching token transfers for:', address);
@@ -384,17 +411,19 @@ const publicClient = createPublicClient({
 });
 
 export async function fetchFastData(address: string) {
-  console.log('⚡ Fetching FAST data (Alchemy)...');
-  const [balance, transactionCount, basename] = await Promise.all([
+  console.log('⚡ Fetching FAST data (Alchemy + FirstTx)...');
+  const [balance, transactionCount, basename, firstTxDate] = await Promise.all([
     publicClient.getBalance({ address: address as `0x${string}` }),
     publicClient.getTransactionCount({ address: address as `0x${string}` }),
-    getBasename(address)
+    getBasename(address),
+    fetchFirstTransactionDate(address) // NEW: Get accurate wallet age
   ]);
 
   return {
     ethBalance: Number(balance) / 1e18,
     txCount: transactionCount,
-    basename
+    basename,
+    firstTxDate // NEW: Single source of truth for wallet age
   };
 }
 

@@ -79,11 +79,13 @@ export function useWalletData(): UseWalletDataResult {
       const step1Stats: WalletStats = {
         ...INITIAL_STATS,
         totalTransactions: fastData.txCount, // SINGLE SOURCE OF TRUTH: Alchemy Nonce
+        firstTxDate: fastData.firstTxDate,   // SINGLE SOURCE OF TRUTH: Dedicated API call
         basename: fastData.basename
       };
 
-      // Store Alchemy tx count as the definitive value - NEVER OVERWRITE
+      // Store authoritative values - NEVER OVERWRITE
       const alchemyTxCount = fastData.txCount;
+      const authoritativeFirstTxDate = fastData.firstTxDate;
 
       // Update UI immediately
       setStats(step1Stats);
@@ -92,7 +94,7 @@ export function useWalletData(): UseWalletDataResult {
       setPercentile(getPercentileEstimate(step1Score.total));
 
       // STEP 2: HISTORY (BaseScan)
-      // For "On Base Since", Days Active, Protocols - NOT for Tx Count
+      // For Days Active, Protocols - NOT for Tx Count or First Date
       console.time('HistoryFetch');
       const history = await fetchHistoryData(address);
       console.timeEnd('HistoryFetch');
@@ -105,10 +107,11 @@ export function useWalletData(): UseWalletDataResult {
         {} // No prices yet
       );
 
-      // SINGLE SOURCE OF TRUTH: Always use Alchemy for txCount
+      // SINGLE SOURCE OF TRUTH: Override with authoritative values
       const step2Stats: WalletStats = {
         ...calculatedStats,
-        totalTransactions: alchemyTxCount, // FIXED: Never use list length
+        totalTransactions: alchemyTxCount,        // FIXED: From Alchemy
+        firstTxDate: authoritativeFirstTxDate,    // FIXED: From dedicated API
         basename: fastData.basename
       };
 
@@ -146,10 +149,11 @@ export function useWalletData(): UseWalletDataResult {
         prices
       );
 
-      // SINGLE SOURCE OF TRUTH: Always use Alchemy for txCount
+      // SINGLE SOURCE OF TRUTH: Override with authoritative values
       const finalStats: WalletStats = {
         ...pricedStats,
-        totalTransactions: alchemyTxCount, // FIXED: Never use list length
+        totalTransactions: alchemyTxCount,        // FIXED: From Alchemy
+        firstTxDate: authoritativeFirstTxDate,    // FIXED: From dedicated API
         basename: fastData.basename
       };
 
