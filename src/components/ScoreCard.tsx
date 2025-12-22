@@ -3,13 +3,40 @@
 import React from 'react';
 import { formatPercentile } from '@/utils/getRankInfo';
 
+import { Skeleton } from './Skeleton';
+
 interface ScoreHeroProps {
   score: number;
   percentile: number;
+  isLoading?: boolean;
 }
 
-export default function ScoreHero({ score, percentile }: ScoreHeroProps) {
+export default function ScoreHero({ score, percentile, isLoading }: ScoreHeroProps) {
   const isVerified = score >= 100;
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 animate-pulse relative overflow-hidden rounded-3xl border border-white/[0.03] bg-gradient-to-b from-white/[0.02] to-transparent">
+        <div className="mb-6">
+          <Skeleton className="h-4 w-32" />
+        </div>
+        <div className="relative mb-4">
+          <Skeleton className="h-32 w-48 rounded-2xl" />
+        </div>
+        <div className="mt-4 flex items-center gap-6">
+          <div className="flex flex-col items-center gap-2">
+            <Skeleton className="h-3 w-16" />
+            <Skeleton className="h-6 w-12" />
+          </div>
+          <div className="w-[1px] h-8 bg-white/10" />
+          <div className="flex flex-col items-center gap-2">
+            <Skeleton className="h-3 w-16" />
+            <Skeleton className="h-6 w-12" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col items-center justify-center py-12 animate-fade-in relative overflow-hidden rounded-3xl border border-white/[0.03] bg-gradient-to-b from-white/[0.02] to-transparent">

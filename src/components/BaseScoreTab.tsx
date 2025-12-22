@@ -6,6 +6,10 @@ import { ChecklistItem } from './ChecklistItem';
 import type { WalletStats, ChecklistItem as ChecklistItemType } from '@/types';
 import { formatPercentile } from '@/utils/getRankInfo';
 
+
+
+import { Skeleton } from './Skeleton';
+
 interface BaseScoreTabProps {
   baseScore: number;
   percentile: number;
@@ -13,6 +17,7 @@ interface BaseScoreTabProps {
   totalUsers?: number;
   stats: WalletStats;
   checklist: ChecklistItemType[];
+  isLoading?: boolean;
 }
 
 export function BaseScoreTab({
@@ -22,7 +27,54 @@ export function BaseScoreTab({
   totalUsers = 0,
   stats,
   checklist,
+  isLoading,
 }: BaseScoreTabProps) {
+  if (isLoading) {
+    return (
+      <div className="space-y-5 animate-pulse">
+        {/* Score Header Skeleton */}
+        <div className="bg-gradient-to-br from-bg-card to-bg-secondary rounded-2xl p-6 border border-border flex items-center gap-6">
+          <Skeleton className="w-24 h-24 rounded-full" />
+          <div className="space-y-2">
+            <Skeleton className="w-20 h-6 rounded-full" />
+            <Skeleton className="w-32 h-4" />
+            <Skeleton className="w-24 h-3" />
+          </div>
+        </div>
+
+        {/* Stats Grid Skeleton */}
+        <div className="grid grid-cols-2 gap-3">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="bg-white/5 rounded-xl p-4 border border-white/5">
+              <Skeleton className="w-20 h-3 mb-2" />
+              <Skeleton className="w-16 h-6 mb-1" />
+              <Skeleton className="w-12 h-2" />
+            </div>
+          ))}
+        </div>
+
+        {/* Checklist Skeleton */}
+        <div className="space-y-4">
+          <div className="flex justify-between">
+            <Skeleton className="w-32 h-6" />
+            <Skeleton className="w-16 h-4" />
+          </div>
+          <Skeleton className="w-full h-1 rounded-full" />
+          <div className="space-y-2">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="flex items-center gap-3 p-3 bg-white/5 rounded-lg border border-white/5">
+                <Skeleton className="w-5 h-5 rounded-full" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="w-32 h-4" />
+                  <Skeleton className="w-48 h-3" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
   const completedTasks = checklist.filter((t) => t.completed).length;
   const totalTasks = checklist.length;
   const progressPercent = (completedTasks / totalTasks) * 100;

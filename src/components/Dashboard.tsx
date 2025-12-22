@@ -42,19 +42,9 @@ export function Dashboard() {
 
   const shortAddress = address ? `${address.slice(0, 6)}...${address.slice(-4)}` : '';
 
-  // 1. High-End Technical Loading State
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-bg-primary font-jetbrains-mono">
-        <div className="w-48 h-[1px] bg-white/5 overflow-hidden relative mb-6">
-          <div className="absolute inset-0 bg-base-blue animate-scan" />
-        </div>
-        <p className="text-[10px] text-gray-500 tracking-[0.4em] uppercase animate-pulse">
-          Analyzing Base Mainnet
-        </p>
-      </div>
-    );
-  }
+  // Removed blocking loader to show Skeletons instead
+  // The 'isLoading' state is now passed to components
+
 
   return (
     <div className="min-h-screen bg-bg-primary text-white selection:bg-base-blue">
@@ -98,7 +88,7 @@ export function Dashboard() {
         {/* 4. The Hero Component */}
         {activeTab === 'score' && (
           <div className="mb-14">
-            <ScoreHero score={baseScore} percentile={percentile} />
+            <ScoreHero score={baseScore} percentile={percentile} isLoading={isLoading} />
           </div>
         )}
 
@@ -125,16 +115,22 @@ export function Dashboard() {
         {/* 6. Content Display */}
         <div className="animate-fade-in">
           {activeTab === 'score' ? (
-            stats ? (
-              <BaseScoreTab
-                baseScore={baseScore}
-                percentile={percentile}
-                stats={stats}
-                checklist={checklist}
-              />
-            ) : (
-              <div className="text-center text-white py-20">Loading Base Score...</div>
-            )
+            <BaseScoreTab
+              baseScore={baseScore}
+              percentile={percentile}
+              stats={stats || {
+                totalTransactions: 0,
+                uniqueProtocols: 0,
+                totalVolume: 0,
+                firstTxDate: null,
+                daysActive: 0,
+                gasSpent: 0,
+                nftsMinted: 0,
+                bridgeTransactions: 0
+              }}
+              checklist={checklist}
+              isLoading={isLoading}
+            />
           ) : (
             stats ? (
               <PnLTab pnl={pnl} recentTrades={recentTrades} />
