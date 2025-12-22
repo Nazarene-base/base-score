@@ -15,7 +15,7 @@ import { calculateBaseScore, getBaseScore } from '@/utils/calculateScore';
 import { formatPercentile, getPercentileEstimate } from '@/utils/getRankInfo';
 
 // Base network endpoint (part of Etherscan API V2)
-const BASESCAN_API = 'https://api.basescan.org/api';
+const BASESCAN_API = 'https://api.etherscan.io/v2/api';
 
 // Get Etherscan API V2 key from environment
 const API_KEY = process.env.NEXT_PUBLIC_BASESCAN_API_KEY || '';
@@ -31,7 +31,7 @@ if (typeof window !== 'undefined') {
 async function getBalance(address: string): Promise<number> {
   try {
     const response = await fetch(
-      `${BASESCAN_API}?module=account&action=balance&address=${address}&tag=latest&apikey=${API_KEY}`
+      `${BASESCAN_API}?chainid=8453&module=account&action=balance&address=${address}&tag=latest&apikey=${API_KEY}`
     );
     const data = await response.json();
 
@@ -48,8 +48,9 @@ async function getBalance(address: string): Promise<number> {
 
 // Helper to make API calls with Etherscan API V2
 async function fetchBaseScan<T>(params: Record<string, string>): Promise<T[]> {
-  // Etherscan API V2 uses 'apikey' parameter
+  // Etherscan API V2 uses 'apikey' parameter and 'chainid'
   const searchParams = new URLSearchParams({
+    chainid: '8453', // Base Mainnet
     ...params,
     apikey: API_KEY,
   });
