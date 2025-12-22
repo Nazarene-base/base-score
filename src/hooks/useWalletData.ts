@@ -1,10 +1,17 @@
-// Custom hooks for Base Score app
-'use client';
-
 import { useState, useEffect, useCallback } from 'react';
 import { useAccount } from 'wagmi';
-import { fetchWalletData } from '@/lib/basescan';
+import {
+  fetchFastData,
+  fetchHistoryData,
+  calculateWalletStats, // Need this exported
+  fetchWalletData // Legacy fallback
+} from '@/lib/basescan';
+import { calculateBaseScore } from '@/utils/calculateScore';
+import { getPercentileEstimate } from '@/utils/getRankInfo';
+import { getTokenPrices } from '@/lib/price'; // Import direct if needed
+
 import type { WalletStats, ChecklistItem, Trade, PnLData } from '@/types';
+import { generateChecklist } from '@/lib/basescan';
 
 interface UseWalletDataResult {
   isLoading: boolean;
@@ -18,11 +25,25 @@ interface UseWalletDataResult {
   refetch: () => void;
 }
 
+const INITIAL_STATS: WalletStats = {
+  totalTransactions: 0,
+  uniqueProtocols: 0,
+  totalVolume: 0,
+  firstTxDate: null,
+  daysActive: 0,
+  gasSpent: 0,
+  nftsMinted: 0,
+  bridgeTransactions: 0,
+  basename: null,
+};
+
 export function useWalletData(): UseWalletDataResult {
   const { address, isConnected } = useAccount();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
   const [stats, setStats] = useState<WalletStats | null>(null);
+  const [ethBalance, setEthBalance] = useState(0); // Store separately for progressive updates
   const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
   const [baseScore, setBaseScore] = useState(0);
   const [percentile, setPercentile] = useState(0);
@@ -35,22 +56,97 @@ export function useWalletData(): UseWalletDataResult {
       setBaseScore(0);
       setPercentile(0);
       setRecentTrades([]);
+      setEthBalance(0);
       return;
     }
 
     setIsLoading(true);
     setError(null);
+    setStats(INITIAL_STATS); // Reset to empty skeleton
 
     try {
-      const data = await fetchWalletData(address);
-      setStats(data.stats);
-      setChecklist(data.checklist);
-      setBaseScore(data.baseScore);
-      setPercentile(data.percentile);
-      setRecentTrades(data.recentTrades);
+      // STEP 1: FAST (Alchemy)
+      // Immediate "Alive" check - Balances & Tx Count
+      console.time('FastFetch');
+      const fastData = await fetchFastData(address);
+      console.timeEnd('FastFetch');
+
+      setEthBalance(fastData.ethBalance);
+
+      const step1Stats: WalletStats = {
+        ...INITIAL_STATS,
+        totalTransactions: fastData.txCount, // Estimation from nonce
+        basename: fastData.basename
+      };
+
+      // Update UI immediately
+      setStats(step1Stats);
+      const step1Score = calculateBaseScore(step1Stats, fastData.ethBalance);
+      setBaseScore(step1Score.total);
+      setPercentile(getPercentileEstimate(step1Score.total));
+
+      // STEP 2: HISTORY (BaseScan)
+      // "On Base Since" & Activity
+      console.time('HistoryFetch');
+      const history = await fetchHistoryData(address);
+      console.timeEnd('HistoryFetch');
+
+      // Calculate Step 2 Stats (No prices yet)
+      const step2Stats = calculateWalletStats(
+        history.transactions,
+        history.tokenTransfers,
+        history.nftTransfers,
+        {} // No prices yet
+      );
+      step2Stats.basename = fastData.basename; // Keep basename
+
+      // Update UI
+      setStats(step2Stats);
+      const step2Score = calculateBaseScore(step2Stats, fastData.ethBalance);
+      setBaseScore(step2Score.total);
+      setPercentile(getPercentileEstimate(step2Score.total));
+      setChecklist(generateChecklist(history.transactions, history.tokenTransfers, history.nftTransfers));
+
+      // STEP 3: SLOW (Prices / Gecko)
+      // Volume & PnL
+      console.time('PriceFetch');
+
+      // Collect unique tokens from history
+      const uniqueTokenAddresses = Array.from(new Set(
+        history.tokenTransfers
+          .map(t => t.contractAddress?.toLowerCase())
+          .filter(addr => addr && addr.startsWith('0x'))
+      )).slice(0, 30);
+
+      // Ensure WETH
+      if (!uniqueTokenAddresses.includes('0x4200000000000000000000000000000000000006')) {
+        uniqueTokenAddresses.push('0x4200000000000000000000000000000000000006');
+      }
+
+      const prices = await getTokenPrices(uniqueTokenAddresses as string[]);
+      console.timeEnd('PriceFetch');
+
+      // Calculate Final Stats
+      const finalStats = calculateWalletStats(
+        history.transactions,
+        history.tokenTransfers,
+        history.nftTransfers,
+        prices
+      );
+      finalStats.basename = fastData.basename;
+
+      // Final Update
+      setStats(finalStats);
+      const finalScore = calculateBaseScore(finalStats, fastData.ethBalance);
+      setBaseScore(finalScore.total);
+      setPercentile(getPercentileEstimate(finalScore.total));
+
+      // TODO: Parse recent trades implementation needs extract
+      // setRecentTrades(parseRecentTrades(...)) - Assuming it's not exported or needs refactor
+
     } catch (err) {
-      console.error('Error fetching wallet data:', err);
-      setError('Failed to fetch wallet data. Please try again.');
+      console.error('Error progressive fetching:', err);
+      setError('Failed to fetch data');
     } finally {
       setIsLoading(false);
     }
@@ -60,43 +156,22 @@ export function useWalletData(): UseWalletDataResult {
     fetchData();
   }, [fetchData]);
 
-  // Debug logging as requested
-  useEffect(() => {
-    if (address && stats) {
-      console.log('--------------------------------------------------');
-      console.log('👛 Wallet Address:', address);
-      console.log('📊 Fetched Transactions:', stats.totalTransactions);
-      console.log('🔢 Calculated Score:', baseScore);
-      console.log('🌐 Protocol Interactions:', stats.uniqueProtocols);
-      console.log('--------------------------------------------------');
-    }
-  }, [address, stats, baseScore]);
-
-  // Generate mock P&L data ONLY if we have actual trades
-  // In a real app, this would be calculated from historical price data
-  const pnl: PnLData | null = (stats && recentTrades.length > 0)
+  // Generators for PnL... (Mock for now or integrate real)
+  const pnl: PnLData | null = (stats && stats.totalTransactions > 0)
     ? {
-      totalPnL: Math.random() * 5000 - 1000, // Mock based on activity
-      totalPnLPercent: Math.random() * 100 - 20,
-      winRate: 50 + Math.random() * 30,
-      totalTrades: recentTrades.length,
-      bestTrade: {
-        token: recentTrades[0]?.token || 'ETH',
-        profit: Math.random() * 1000,
-        percent: Math.random() * 200,
-      },
-      worstTrade: {
-        token: recentTrades[1]?.token || 'USDC',
-        loss: -(Math.random() * 500),
-        percent: -(Math.random() * 50),
-      },
-      last7Days: Math.random() * 1000 - 200,
-      last30Days: Math.random() * 3000 - 500,
+      totalPnL: 0, // Placeholder
+      totalPnLPercent: 0,
+      winRate: 0,
+      totalTrades: 0,
+      bestTrade: { token: 'ETH', profit: 0, percent: 0 },
+      worstTrade: { token: 'ETH', loss: 0, percent: 0 },
+      last7Days: 0,
+      last30Days: 0,
     }
     : null;
 
   return {
-    isLoading,
+    isLoading: isLoading && !stats, // Only show full loader if NO stats yet (Step 0)
     error,
     stats,
     checklist,

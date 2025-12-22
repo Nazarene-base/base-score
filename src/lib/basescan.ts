@@ -365,7 +365,41 @@ export function parseRecentTrades(
   return trades.slice(0, 10);
 }
 
-// Main data fetching function
+// NEW: Fast data fetch for progressive loading (Alchemy / Viem)
+import { createPublicClient, http } from 'viem';
+import { base } from 'viem/chains';
+
+const publicClient = createPublicClient({
+  chain: base,
+  transport: http(`https://base-mainnet.g.alchemy.com/v2/${process.env.NEXT_PUBLIC_ALCHEMY_API_KEY}`)
+});
+
+export async function fetchFastData(address: string) {
+  console.log('⚡ Fetching FAST data (Alchemy)...');
+  const [balance, transactionCount, basename] = await Promise.all([
+    publicClient.getBalance({ address: address as `0x${string}` }),
+    publicClient.getTransactionCount({ address: address as `0x${string}` }),
+    getBasename(address)
+  ]);
+
+  return {
+    ethBalance: Number(balance) / 1e18,
+    txCount: transactionCount,
+    basename
+  };
+}
+
+export async function fetchHistoryData(address: string) {
+  console.log('📜 Fetching HISTORY data (BaseScan)...');
+  const [transactions, tokenTransfers, nftTransfers] = await Promise.all([
+    getTransactions(address),
+    getTokenTransfers(address),
+    getNFTTransfers(address),
+  ]);
+  return { transactions, tokenTransfers, nftTransfers };
+}
+
+// Main data fetching function (Legacy/Full)
 export async function fetchWalletData(address: string): Promise<{
   stats: WalletStats;
   checklist: ChecklistItem[];
@@ -373,64 +407,31 @@ export async function fetchWalletData(address: string): Promise<{
   percentile: number;
   recentTrades: Trade[];
 }> {
-  console.log('🚀 Starting wallet data fetch');
-  console.log('📬 Address:', address);
-  console.log('🔑 API Key present:', API_KEY ? 'YES' : 'NO');
-  console.log('📡 Endpoint:', BASESCAN_API);
-
-  if (!API_KEY) {
-    console.error('❌ CRITICAL: No API key found!');
-    console.error('Set NEXT_PUBLIC_BASESCAN_API_KEY in .env.local');
-    console.error('Get key from: https://etherscan.io/myapikey');
-  } else {
-    console.log('--------------------------------------------------');
-    console.log('🔍 Starting Data Fetch for:', address);
-    console.log('🔑 API Key Loaded (Length):', API_KEY.length);
-    console.log('--------------------------------------------------');
-  }
-
-  // Fetch all data in parallel
-  console.log('⏳ Fetching data from Etherscan API V2...');
-
-  const [transactions, tokenTransfers, nftTransfers, basename] = await Promise.all([
-    getTransactions(address),
-    getTokenTransfers(address),
-    getNFTTransfers(address),
-    getBasename(address),
-  ]);
-
-  console.log('✅ All API calls complete');
-
-  // NEW: Fetch real token prices via GeckoTerminal
-  // Collect unique token addresses from transfers (limit to top 30 most recent to satisfy API limits if any)
+  // ... (keep existing implementation for backward compatibility or refactor to use above)
+  const { ethBalance, basename } = await fetchFastData(address);
+  // ...
+  const { transactions, tokenTransfers, nftTransfers } = await fetchHistoryData(address);
+  // ...
+  // Collect unique token addresses
   const uniqueTokenAddresses = Array.from(new Set(
     tokenTransfers
       .map(t => t.contractAddress?.toLowerCase())
       .filter(addr => addr && addr.startsWith('0x'))
   )).slice(0, 30);
 
-  // Also add WETH/ETH equivalent for pricing
+  // Add WETH if missing
   if (!uniqueTokenAddresses.includes('0x4200000000000000000000000000000000000006')) {
     uniqueTokenAddresses.push('0x4200000000000000000000000000000000000006');
   }
 
   const tokenPrices = await getTokenPrices(uniqueTokenAddresses as string[]);
 
-  // Fetch ETH balance
-  const ethBalance = await getBalance(address);
-
-  // Calculate everything
   const stats = calculateWalletStats(transactions, tokenTransfers, nftTransfers, tokenPrices);
-  stats.basename = basename; // Attach Basename to stats
+  stats.basename = basename;
 
   const checklist = generateChecklist(transactions, tokenTransfers, nftTransfers);
-
-  // NEW: Use 3-pillar scoring
   const scoreBreakdown = calculateBaseScore(stats, ethBalance);
-
   const baseScore = scoreBreakdown.total;
-
-  // NEW: Dynamic percentile
   const percentile = getPercentileEstimate(baseScore);
   const recentTrades = parseRecentTrades(tokenTransfers, address);
 
