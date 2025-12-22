@@ -212,30 +212,18 @@ export function calculateWalletStats(
   transactions: BaseScanTransaction[],
   tokenTransfers: BaseScanTokenTransfer[],
   nftTransfers: BaseScanTokenTransfer[],
-  tokenPrices: Record<string, number> = {}
+  tokenPrices: Record<string, number> = {},
+  // NEW: Accept authoritative values to prevent "0" defaults on fetch failure
+  authoritativeTxCount?: number,
+  authoritativeFirstTxDate?: Date | null
 ): WalletStats {
   console.log('📊 Calculating stats:', {
     txs: transactions.length,
     tokens: tokenTransfers.length,
-    nfts: nftTransfers.length
+    nfts: nftTransfers.length,
+    authTx: authoritativeTxCount,
+    authDate: authoritativeFirstTxDate
   });
-
-  // Handle empty wallet
-  if (transactions.length === 0 && tokenTransfers.length === 0) {
-    console.log('ℹ️ Empty wallet - no activity found');
-    return {
-      totalTransactions: 0,
-      uniqueProtocols: 0,
-      totalVolume: 0,
-      firstTxDate: new Date(),
-      daysActive: 0,
-      gasSpent: 0,
-      nftsMinted: 0,
-      bridgeTransactions: 0,
-      tokenCount: 0,
-      hasDexActivity: false,
-    };
-  }
 
   // Unique contracts
   const uniqueContracts = new Set(
@@ -252,47 +240,48 @@ export function calculateWalletStats(
   }, 0);
 
   // Calculate Volume with Real Prices
-  // 1. Native ETH Transfers (Price approx $2500 if NO price found, else use real WETH price)
   const wethPrice = tokenPrices['0x4200000000000000000000000000000000000006'] || 2500;
   const ethVolume = transactions.reduce((acc, tx) => {
+    // Only count outgoing transfers or contract calls with value
     return acc + (Number(tx.value) / 1e18);
   }, 0);
   const ethVolumeUSD = ethVolume * wethPrice;
 
-  // 2. Token Transfers using Real GeckoTerminal Prices
+  // Token Transfers
   const tokenVolumeUSD = tokenTransfers.reduce((acc, transfer) => {
     const contractAddr = transfer.contractAddress?.toLowerCase();
     const price = tokenPrices[contractAddr] || 0;
-
-    // Skip if no price found (better than assuming 1:1)
     if (!price) return acc;
-
     const decimals = Number(transfer.tokenDecimal || 18);
-    const valueStr = transfer.value;
-    // Basic safety check for huge numbers
-    if (valueStr.length > 30) return acc;
-
-    const valueObj = Number(valueStr) / Math.pow(10, decimals);
+    // Safety check for bad data
+    if (transfer.value.length > 30) return acc;
+    const valueObj = Number(transfer.value) / Math.pow(10, decimals);
     return acc + (valueObj * price);
   }, 0);
 
   const totalVolume = ethVolumeUSD + tokenVolumeUSD;
 
-  // First transaction date
-  const allTxs = [...transactions, ...tokenTransfers].sort(
-    (a, b) => Number(a.timeStamp) - Number(b.timeStamp)
-  );
-  const firstTxDate = allTxs.length > 0
-    ? new Date(Number(allTxs[0].timeStamp) * 1000)
-    : new Date();
+  // First transaction date - Use authoritative if provided, else fallback to list
+  let firstTxDate = authoritativeFirstTxDate || null;
+  if (!firstTxDate) {
+    const allTxs = [...transactions, ...tokenTransfers].sort(
+      (a, b) => Number(a.timeStamp) - Number(b.timeStamp)
+    );
+    firstTxDate = allTxs.length > 0
+      ? new Date(Number(allTxs[0].timeStamp) * 1000)
+      : null; // Don't default to "now", allow null
+  }
+
+  // Transaction Count - Use authoritative if provided
+  const totalTransactions = authoritativeTxCount !== undefined
+    ? authoritativeTxCount
+    : transactions.length + tokenTransfers.length;
 
   // Unique days active
-  const uniqueDays = new Set(
-    allTxs.map((tx) => {
-      const date = new Date(Number(tx.timeStamp) * 1000);
-      return date.toISOString().split('T')[0];
-    })
-  );
+  const uniqueDays = new Set([
+    ...transactions.map(tx => new Date(Number(tx.timeStamp) * 1000).toISOString().split('T')[0]),
+    ...tokenTransfers.map(tx => new Date(Number(tx.timeStamp) * 1000).toISOString().split('T')[0])
+  ]);
 
   // Bridge transactions
   const bridgeContracts = TRACKED_PROTOCOLS
@@ -304,7 +293,7 @@ export function calculateWalletStats(
   ).length;
 
   const stats = {
-    totalTransactions: transactions.length + tokenTransfers.length,
+    totalTransactions,
     uniqueProtocols: uniqueContracts.size,
     totalVolume: Math.round(totalVolume * 100) / 100,
     firstTxDate,
@@ -321,9 +310,11 @@ export function calculateWalletStats(
     }),
   };
 
-  console.log('✅ Stats:', stats);
+  console.log('✅ Stats Calculated:', { totalTransactions, firstTxDate });
   return stats;
 }
+
+
 
 // Generate airdrop checklist
 export function generateChecklist(

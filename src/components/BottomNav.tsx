@@ -1,9 +1,30 @@
-import { HomeIcon, ChartBarIcon, UserIcon } from './Icons'; // Assuming icons exist or I'll create them
+import { HomeIcon, ChartBarIcon, UserIcon } from './Icons';
+
+// Compare Icon (inline for simplicity)
+function CompareIcon(props: any) {
+    return (
+        <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            {...props}
+        >
+            <line x1="18" y1="20" x2="18" y2="10" />
+            <line x1="12" y1="20" x2="12" y2="4" />
+            <line x1="6" y1="20" x2="6" y2="14" />
+        </svg>
+    );
+}
 
 interface BottomNavProps {
-    activeTab: 'score' | 'pnl' | 'profile';
+    activeTab: 'score' | 'pnl' | 'compare' | 'profile';
     visible: boolean;
-    onChange: (tab: 'score' | 'pnl' | 'profile') => void;
+    onChange: (tab: 'score' | 'pnl' | 'compare' | 'profile') => void;
 }
 
 export function BottomNav({ activeTab, visible, onChange }: BottomNavProps) {
@@ -12,7 +33,7 @@ export function BottomNav({ activeTab, visible, onChange }: BottomNavProps) {
     const tabs = [
         { id: 'score', label: 'Home', icon: HomeIcon },
         { id: 'pnl', label: 'Market', icon: ChartBarIcon },
-        // { id: 'profile', label: 'Profile', icon: UserIcon }, // Future use
+        { id: 'compare', label: 'Compare', icon: CompareIcon },
     ] as const;
 
     return (
@@ -42,3 +63,4 @@ export function BottomNav({ activeTab, visible, onChange }: BottomNavProps) {
         </div>
     );
 }
+

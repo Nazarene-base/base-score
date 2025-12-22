@@ -6,12 +6,13 @@ import { useAccount, useDisconnect } from 'wagmi';
 import { useWalletData } from '@/hooks/useWalletData';
 import { BaseScoreTab } from './BaseScoreTab';
 import { PnLTab } from './PnLTab';
+import { CompareTab } from './CompareTab';
 import ScoreHero from './ScoreCard';
 import { RefreshIcon } from './Icons';
 
 import { BottomNav } from './BottomNav';
 
-type TabId = 'score' | 'pnl' | 'profile';
+type TabId = 'score' | 'pnl' | 'compare' | 'profile';
 
 export function Dashboard() {
   const [activeTab, setActiveTab] = useState<TabId>('score');
@@ -102,7 +103,7 @@ export function Dashboard() {
 
         {/* 6. Content Display (Dynamic) */}
         <div className="min-h-[300px]">
-          {activeTab === 'score' ? (
+          {activeTab === 'score' && (
             <BaseScoreTab
               baseScore={baseScore}
               percentile={percentile}
@@ -121,12 +122,20 @@ export function Dashboard() {
               checklist={checklist}
               isLoading={isLoading}
             />
-          ) : (
+          )}
+          {activeTab === 'pnl' && (
             stats ? (
               <PnLTab pnl={pnl} recentTrades={recentTrades} />
             ) : (
               <div className="text-center text-white py-20 font-space-grotesk opacity-50">Loading Market Data...</div>
             )
+          )}
+          {activeTab === 'compare' && (
+            <CompareTab
+              myStats={stats}
+              myScore={baseScore}
+              myPercentile={percentile}
+            />
           )}
         </div>
 
@@ -150,7 +159,7 @@ export function Dashboard() {
 
       {/* NEW: Bottom Navigation */}
       <BottomNav
-        activeTab={activeTab as 'score' | 'pnl'}
+        activeTab={activeTab}
         visible={!!stats || isLoading}
         onChange={(tab) => setActiveTab(tab)}
       />

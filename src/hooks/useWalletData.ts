@@ -81,7 +81,9 @@ export function useWalletData(): UseWalletDataResult {
   const [lastFetched, setLastFetched] = useState<Date | null>(null); // NEW: Freshness indicator
 
   const fetchData = useCallback(async () => {
-    // DEBUG: Log address state
+    // Race Condition Guard
+    const abortController = new AbortController();
+
     console.log('📊 useWalletData.fetchData called:', {
       address: address || 'NO ADDRESS',
       isConnected,
@@ -137,12 +139,14 @@ export function useWalletData(): UseWalletDataResult {
       const history = await fetchHistoryData(address);
       console.timeEnd('HistoryFetch');
 
-      // Calculate Step 2 Stats (No prices yet)
+      // Calculate Step 2 Stats
       const calculatedStats = calculateWalletStats(
         history.transactions,
         history.tokenTransfers,
         history.nftTransfers,
-        {} // No prices yet
+        {}, // No prices yet
+        alchemyTxCount,        // AUTHORITATIVE: Pass Alchemy Tx Count
+        authoritativeFirstTxDate // AUTHORITATIVE: Pass Dedicated Age
       );
 
       // SINGLE SOURCE OF TRUTH: Override with authoritative values
@@ -185,7 +189,9 @@ export function useWalletData(): UseWalletDataResult {
         history.transactions,
         history.tokenTransfers,
         history.nftTransfers,
-        prices
+        prices,
+        alchemyTxCount,        // AUTHORITATIVE: Pass Alchemy Tx Count
+        authoritativeFirstTxDate // AUTHORITATIVE: Pass Dedicated Age
       );
 
       // SINGLE SOURCE OF TRUTH: Override with authoritative values
