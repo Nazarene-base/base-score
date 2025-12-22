@@ -50,7 +50,8 @@ interface UseWalletDataResult {
   recentTrades: Trade[];
   pnl: PnLData | null;
   refetch: () => void;
-  lastFetched: Date | null; // NEW: For UI freshness indicator
+  lastFetched: Date | null;
+  transactions: any[]; // NEW: Raw transaction list for details
 }
 
 const INITIAL_STATS: WalletStats = {
@@ -78,7 +79,9 @@ export function useWalletData(): UseWalletDataResult {
   const [baseScore, setBaseScore] = useState(0);
   const [percentile, setPercentile] = useState(0);
   const [recentTrades, setRecentTrades] = useState<Trade[]>([]);
-  const [lastFetched, setLastFetched] = useState<Date | null>(null); // NEW: Freshness indicator
+
+  const [lastFetched, setLastFetched] = useState<Date | null>(null);
+  const [transactions, setTransactions] = useState<any[]>([]); // NEW
 
   const fetchData = useCallback(async () => {
     // Race Condition Guard
@@ -118,13 +121,12 @@ export function useWalletData(): UseWalletDataResult {
 
       const step1Stats: WalletStats = {
         ...INITIAL_STATS,
-        totalTransactions: fastData.txCount, // SINGLE SOURCE OF TRUTH: Alchemy Nonce
+        totalTransactions: 0, // Will be populated by BaseScan history
         firstTxDate: fastData.firstTxDate,   // SINGLE SOURCE OF TRUTH: Dedicated API call
         basename: fastData.basename
       };
 
-      // Store authoritative values - NEVER OVERWRITE
-      const alchemyTxCount = fastData.txCount;
+      // Store authoritative first tx date - NEVER OVERWRITE
       const authoritativeFirstTxDate = fastData.firstTxDate;
 
       // Update UI immediately
@@ -139,23 +141,27 @@ export function useWalletData(): UseWalletDataResult {
       const history = await fetchHistoryData(address);
       console.timeEnd('HistoryFetch');
 
+      // REAL TRANSACTION COUNT: Use BaseScan history length (includes both sent AND received)
+      // Alchemy's txCount is the NONCE (outgoing only) - NOT what the user expects
+      const realTxCount = history.transactions.length + history.tokenTransfers.length;
+
       // Calculate Step 2 Stats
       const calculatedStats = calculateWalletStats(
         history.transactions,
         history.tokenTransfers,
         history.nftTransfers,
         {}, // No prices yet
-        alchemyTxCount,        // AUTHORITATIVE: Pass Alchemy Tx Count
-        authoritativeFirstTxDate // AUTHORITATIVE: Pass Dedicated Age
+        realTxCount,           // AUTHORITATIVE: From BaseScan history
+        authoritativeFirstTxDate // AUTHORITATIVE: From Dedicated Age
       );
 
       // SINGLE SOURCE OF TRUTH: Override with authoritative values
       const step2Stats: WalletStats = {
         ...calculatedStats,
-        totalTransactions: alchemyTxCount,        // FIXED: From Alchemy
+        totalTransactions: realTxCount,       // FIXED: From BaseScan (all txs)
         firstTxDate: authoritativeFirstTxDate,    // FIXED: From dedicated API
         basename: fastData.basename,
-        isApproximate: history.isApproximate      // NEW: Flag for UI
+        isApproximate: history.isApproximate      // Flag if >5000 txs
       };
 
       // Update UI
@@ -163,7 +169,9 @@ export function useWalletData(): UseWalletDataResult {
       const step2Score = calculateBaseScore(step2Stats, fastData.ethBalance);
       setBaseScore(step2Score.total);
       setPercentile(getPercentileEstimate(step2Score.total));
+      setPercentile(getPercentileEstimate(step2Score.total));
       setChecklist(generateChecklist(history.transactions, history.tokenTransfers, history.nftTransfers));
+      setTransactions(history.transactions); // NEW: Store raw list
 
       // STEP 3: SLOW (Prices / Gecko)
       // Volume & PnL
@@ -190,17 +198,17 @@ export function useWalletData(): UseWalletDataResult {
         history.tokenTransfers,
         history.nftTransfers,
         prices,
-        alchemyTxCount,        // AUTHORITATIVE: Pass Alchemy Tx Count
-        authoritativeFirstTxDate // AUTHORITATIVE: Pass Dedicated Age
+        realTxCount,           // AUTHORITATIVE: From BaseScan history
+        authoritativeFirstTxDate // AUTHORITATIVE: From Dedicated Age
       );
 
       // SINGLE SOURCE OF TRUTH: Override with authoritative values
       const finalStats: WalletStats = {
         ...pricedStats,
-        totalTransactions: alchemyTxCount,        // FIXED: From Alchemy
+        totalTransactions: realTxCount,       // FIXED: From BaseScan (all txs)
         firstTxDate: authoritativeFirstTxDate,    // FIXED: From dedicated API
         basename: fastData.basename,
-        isApproximate: history.isApproximate      // NEW: Flag for UI
+        isApproximate: history.isApproximate      // Flag if >5000 txs
       };
 
       // Final Update
@@ -252,7 +260,8 @@ export function useWalletData(): UseWalletDataResult {
     recentTrades,
     pnl,
     refetch: fetchData,
-    lastFetched, // NEW: For UI freshness indicator
+    lastFetched,
+    transactions, // NEW
   };
 }
 

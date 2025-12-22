@@ -1,8 +1,7 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { formatPercentile } from '@/utils/getRankInfo';
-
 import { Skeleton } from './Skeleton';
 
 interface ScoreHeroProps {
@@ -12,26 +11,52 @@ interface ScoreHeroProps {
 }
 
 export default function ScoreHero({ score, percentile, isLoading }: ScoreHeroProps) {
-  const isVerified = score >= 100;
+  const [displayScore, setDisplayScore] = useState(0);
+  const [hasAnimated, setHasAnimated] = useState(false);
+
+  // Animated count-up effect
+  useEffect(() => {
+    if (isLoading || hasAnimated) return;
+
+    const duration = 1500; // 1.5 seconds
+    const steps = 60;
+    const increment = score / steps;
+    let current = 0;
+    let step = 0;
+
+    const timer = setInterval(() => {
+      step++;
+      current = Math.min(Math.round(increment * step), score);
+      setDisplayScore(current);
+
+      if (step >= steps) {
+        clearInterval(timer);
+        setDisplayScore(score);
+        setHasAnimated(true);
+      }
+    }, duration / steps);
+
+    return () => clearInterval(timer);
+  }, [score, isLoading, hasAnimated]);
+
+  // Sync if score changes externally
+  useEffect(() => {
+    if (hasAnimated) {
+      setDisplayScore(score);
+    }
+  }, [score, hasAnimated]);
+
+  const isVerified = score >= 50;
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 animate-pulse relative overflow-hidden rounded-3xl border border-white/[0.03] bg-gradient-to-b from-white/[0.02] to-transparent">
-        <div className="mb-6">
-          <Skeleton className="h-4 w-32" />
-        </div>
-        <div className="relative mb-4">
-          <Skeleton className="h-32 w-48 rounded-2xl" />
-        </div>
-        <div className="mt-4 flex items-center gap-6">
-          <div className="flex flex-col items-center gap-2">
-            <Skeleton className="h-3 w-16" />
-            <Skeleton className="h-6 w-12" />
-          </div>
-          <div className="w-[1px] h-8 bg-white/10" />
-          <div className="flex flex-col items-center gap-2">
-            <Skeleton className="h-3 w-16" />
-            <Skeleton className="h-6 w-12" />
+      <div className="relative overflow-hidden rounded-3xl glass-card p-8 animate-pulse">
+        <div className="flex flex-col items-center justify-center py-8">
+          <Skeleton className="h-4 w-32 mb-6" />
+          <Skeleton className="h-32 w-48 rounded-2xl mb-4" />
+          <div className="flex items-center gap-8 mt-4">
+            <Skeleton className="h-16 w-24 rounded-xl" />
+            <Skeleton className="h-16 w-24 rounded-xl" />
           </div>
         </div>
       </div>
@@ -39,41 +64,62 @@ export default function ScoreHero({ score, percentile, isLoading }: ScoreHeroPro
   }
 
   return (
-    <div className="flex flex-col items-center justify-center py-12 animate-fade-in relative overflow-hidden rounded-3xl border border-white/[0.03] bg-gradient-to-b from-white/[0.02] to-transparent">
-      {/* Background Decorative Glow - Professional touch */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-base-blue/10 blur-[100px] -z-10" />
+    <div className="relative overflow-hidden rounded-3xl glass-card">
+      {/* Ambient Glow Effects */}
+      <div className="absolute -top-20 -left-20 w-60 h-60 bg-accent-purple/20 rounded-full blur-[100px] animate-float" />
+      <div className="absolute -bottom-20 -right-20 w-60 h-60 bg-accent-pink/15 rounded-full blur-[100px] animate-float" style={{ animationDelay: '2s' }} />
 
-      <p className="text-[10px] font-jetbrains-mono text-gray-500 uppercase tracking-[0.4em] mb-6">
-        Network Authority Score
-      </p>
+      {/* Main Content */}
+      <div className="relative z-10 flex flex-col items-center justify-center py-12 px-6">
 
-      <div className="relative">
-        <h1 className="text-[120px] font-space-grotesk font-bold leading-none tracking-tighter text-white drop-shadow-2xl">
-          {score}
-        </h1>
+        {/* Label */}
+        <p className="text-[10px] font-jetbrains-mono text-gray-400 uppercase tracking-[0.4em] mb-4">
+          Network Authority Score
+        </p>
 
-        {/* The "Status Dot" - High-end minimalist detail */}
-        <div className="absolute -top-1 -right-4 flex h-4 w-4">
-          <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${isVerified ? 'bg-base-blue' : 'bg-gray-500'} opacity-20`}></span>
-          <span className={`relative inline-flex rounded-full h-4 w-4 ${isVerified ? 'bg-base-blue shadow-[0_0_15px_rgba(0,82,255,0.8)]' : 'bg-gray-500 shadow-none'}`}></span>
+        {/* The Big Score Number */}
+        <div className="relative mb-2">
+          <h1 className={`text-[140px] font-space-grotesk font-bold leading-none tracking-tighter gradient-text ${hasAnimated ? '' : 'animate-count-up'}`}>
+            {displayScore}
+          </h1>
+
+          {/* Glowing Status Indicator */}
+          <div className="absolute -top-2 -right-2 flex h-5 w-5">
+            <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${isVerified ? 'bg-accent-purple' : 'bg-gray-500'} opacity-30`} />
+            <span className={`relative inline-flex rounded-full h-5 w-5 ${isVerified ? 'bg-gradient-to-br from-accent-purple to-accent-pink shadow-[0_0_20px_rgba(123,97,255,0.8)]' : 'bg-gray-600'}`} />
+          </div>
+        </div>
+
+        {/* Subtitle */}
+        <p className="text-sm text-gray-500 font-medium mb-8">
+          of 100 possible points
+        </p>
+
+        {/* Stats Row */}
+        <div className="flex items-center gap-1 w-full max-w-xs">
+          {/* Percentile Card */}
+          <div className="flex-1 glass-card rounded-2xl p-4 text-center shine-effect">
+            <p className="text-[9px] font-jetbrains-mono text-gray-500 uppercase tracking-widest mb-2">Percentile</p>
+            <p className="text-2xl font-space-grotesk font-bold gradient-text">
+              {formatPercentile(score)}
+            </p>
+          </div>
+
+          {/* Divider */}
+          <div className="w-[1px] h-12 bg-gradient-to-b from-transparent via-white/10 to-transparent mx-2" />
+
+          {/* Status Card */}
+          <div className="flex-1 glass-card rounded-2xl p-4 text-center shine-effect">
+            <p className="text-[9px] font-jetbrains-mono text-gray-500 uppercase tracking-widest mb-2">Status</p>
+            <p className={`text-2xl font-space-grotesk font-bold ${isVerified ? 'gradient-text' : 'text-gray-500'}`}>
+              {isVerified ? 'Active' : 'New'}
+            </p>
+          </div>
         </div>
       </div>
 
-      <div className="mt-8 flex items-center gap-6">
-        <div className="text-center">
-          <p className="text-[10px] font-jetbrains-mono text-gray-500 uppercase tracking-widest mb-1">Percentile</p>
-          <p className="text-lg font-space-grotesk font-bold text-white">
-            {formatPercentile(score)}
-          </p>
-        </div>
-        <div className="w-[1px] h-8 bg-white/10" />
-        <div className="text-center">
-          <p className="text-[10px] font-jetbrains-mono text-gray-500 uppercase tracking-widest mb-1">Status</p>
-          <p className={`text-lg font-space-grotesk font-bold ${isVerified ? 'text-base-blue' : 'text-gray-500'}`}>
-            {isVerified ? 'Verified' : 'Unverified'}
-          </p>
-        </div>
-      </div>
+      {/* Bottom Gradient Line */}
+      <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-accent-purple/50 to-transparent" />
     </div>
   );
 }

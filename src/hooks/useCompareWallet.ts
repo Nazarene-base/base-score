@@ -66,10 +66,14 @@ export function useCompareWallet(): CompareWalletResult {
                 prices
             );
 
+            // REAL TRANSACTION COUNT: Use BaseScan history length (includes both sent AND received)
+            // Alchemy's txCount is the NONCE (outgoing only) - NOT what the user expects
+            const realTxCount = history.transactions.length + history.tokenTransfers.length;
+
             // Apply single source of truth values
             const finalStats: WalletStats = {
                 ...calculatedStats,
-                totalTransactions: fastData.txCount,
+                totalTransactions: realTxCount, // FIXED: From BaseScan (all txs)
                 firstTxDate: fastData.firstTxDate,
                 basename: fastData.basename,
                 isApproximate: history.isApproximate
@@ -82,7 +86,7 @@ export function useCompareWallet(): CompareWalletResult {
             setScore(scoreBreakdown.total);
             setPercentile(getPercentileEstimate(scoreBreakdown.total));
 
-            console.log('✅ Comparison data loaded:', { score: scoreBreakdown.total, txCount: fastData.txCount });
+            console.log('✅ Comparison data loaded:', { score: scoreBreakdown.total, txCount: realTxCount });
 
         } catch (err) {
             console.error('❌ Error fetching comparison data:', err);

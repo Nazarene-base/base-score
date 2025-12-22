@@ -7,51 +7,105 @@ interface StatCardProps {
   value: string | number;
   subValue?: string;
   icon?: ReactNode;
-  color?: 'default' | 'success' | 'danger' | 'warning';
+  color?: 'default' | 'success' | 'danger' | 'warning' | 'purple';
+  onClick?: () => void;
 }
 
-export function StatCard({ label, value, subValue, icon, color = 'default' }: StatCardProps) {
-  const colorMap = {
-    default: 'text-white border-white/5 bg-white/[0.02]',
-    success: 'text-green-400 border-green-500/10 bg-green-500/[0.02]',
-    danger: 'text-red-400 border-red-500/10 bg-red-500/[0.02]',
-    warning: 'text-yellow-400 border-yellow-500/10 bg-yellow-500/[0.02]',
+export function StatCard({ label, value, subValue, icon, color = 'default', onClick }: StatCardProps) {
+  const colorConfig = {
+    default: {
+      text: 'text-white',
+      glow: 'bg-accent-purple/10',
+      border: 'border-white/[0.06] hover:border-accent-purple/30',
+    },
+    success: {
+      text: 'text-success',
+      glow: 'bg-success/10',
+      border: 'border-success/10 hover:border-success/30',
+    },
+    danger: {
+      text: 'text-danger',
+      glow: 'bg-danger/10',
+      border: 'border-danger/10 hover:border-danger/30',
+    },
+    warning: {
+      text: 'text-warning',
+      glow: 'bg-warning/10',
+      border: 'border-warning/10 hover:border-warning/30',
+    },
+    purple: {
+      text: 'gradient-text',
+      glow: 'bg-accent-purple/15',
+      border: 'border-accent-purple/20 hover:border-accent-purple/40',
+    },
   };
 
+  const config = colorConfig[color];
+
   return (
-    <div className={`
-      group relative overflow-hidden rounded-[2rem] border p-6 
-      backdrop-blur-2xl transition-all duration-700 
-      hover:bg-white/[0.04] hover:border-white/20 hover:-translate-y-1
-      ${colorMap[color]}
-    `}>
-      {/* Dynamic Background Mesh - The "Impressive" Factor */}
-      <div className="absolute -right-6 -top-6 h-32 w-32 rounded-full bg-current opacity-[0.03] blur-3xl transition-all duration-1000 group-hover:opacity-[0.1] group-hover:scale-150" />
-      
-      <div className="flex items-center justify-between mb-8">
-        <span className="text-[10px] font-jetbrains-mono uppercase tracking-[0.3em] text-gray-500 group-hover:text-gray-300 transition-colors">
-          {label}
-        </span>
-        {icon && (
-          <div className="opacity-30 group-hover:opacity-100 group-hover:scale-110 group-hover:rotate-6 transition-all duration-500">
-            {icon}
-          </div>
-        )}
+    <div
+      onClick={onClick}
+      className={`
+        group relative overflow-hidden rounded-2xl border p-5
+        glass-card shine-effect
+        transition-all duration-500 ease-out
+        hover:scale-[1.02] hover:-translate-y-1
+        ${config.border}
+        ${onClick ? 'cursor-pointer active:scale-[0.98]' : ''}
+      `}
+    >
+      {/* Background Glow Effect */}
+      <div className={`
+        absolute -right-8 -top-8 h-24 w-24 rounded-full blur-3xl
+        transition-all duration-700 ease-out
+        ${config.glow}
+        opacity-0 group-hover:opacity-100 group-hover:scale-150
+      `} />
+
+      {/* Accent Line on Left */}
+      <div className={`
+        absolute left-0 top-1/2 -translate-y-1/2 h-0 w-[3px] rounded-full
+        bg-gradient-to-b from-accent-purple to-accent-pink
+        transition-all duration-500 group-hover:h-8
+      `} />
+
+      <div className="relative z-10">
+        {/* Header Row */}
+        <div className="flex items-center justify-between mb-4">
+          <span className="text-[10px] font-jetbrains-mono uppercase tracking-[0.2em] text-gray-500 group-hover:text-gray-300 transition-colors">
+            {label}
+          </span>
+          {icon && (
+            <div className={`
+              opacity-40 group-hover:opacity-100 
+              group-hover:scale-110 group-hover:rotate-6 
+              transition-all duration-500
+              ${config.text}
+            `}>
+              {icon}
+            </div>
+          )}
+        </div>
+
+        {/* Value */}
+        <div className="flex flex-col gap-1">
+          <h3 className={`text-2xl font-space-grotesk font-bold tracking-tight ${config.text}`}>
+            {value}
+          </h3>
+          {subValue && (
+            <p className="text-[10px] font-jetbrains-mono text-gray-500 opacity-70 group-hover:opacity-100 transition-opacity">
+              {subValue}
+            </p>
+          )}
+        </div>
       </div>
 
-      <div className="flex flex-col gap-1">
-        <h3 className="text-2xl font-space-grotesk font-bold tracking-tight">
-          {value}
-        </h3>
-        {subValue && (
-          <p className="text-[10px] font-jetbrains-mono text-gray-500 opacity-80 mt-1">
-            {subValue}
-          </p>
-        )}
-      </div>
-
-      {/* Modern interactive indicator line */}
-      <div className="absolute bottom-0 left-0 h-[1px] w-0 bg-current opacity-30 transition-all duration-1000 group-hover:w-full" />
+      {/* Bottom Gradient Line */}
+      <div className="
+        absolute bottom-0 left-0 h-[1px] w-0 
+        bg-gradient-to-r from-accent-purple to-accent-pink
+        transition-all duration-700 group-hover:w-full
+      " />
     </div>
   );
 }

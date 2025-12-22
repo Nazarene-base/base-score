@@ -1,11 +1,12 @@
 'use client';
 
+import { useState } from 'react';
 import { StatCard } from './StatCard';
 import { Skeleton } from './Skeleton';
 import { LEVELS } from '@/constants/levels';
 import { LevelRing } from './LevelRing';
+import { TransactionDetail } from './TransactionDetail';
 import type { WalletStats, ChecklistItem as ChecklistItemType } from '@/types';
-import { formatPercentile } from '@/utils/getRankInfo';
 
 interface BaseScoreTabProps {
   baseScore: number;
@@ -15,6 +16,7 @@ interface BaseScoreTabProps {
   stats: WalletStats;
   checklist: ChecklistItemType[];
   isLoading?: boolean;
+  transactions?: any[];
 }
 
 export function BaseScoreTab({
@@ -23,12 +25,13 @@ export function BaseScoreTab({
   rank = 0,
   totalUsers = 0,
   stats,
-  checklist: _legacyChecklist, // We use the new LEVELS system now
+  checklist: _legacyChecklist,
   isLoading,
+  transactions = []
 }: BaseScoreTabProps) {
+  const [showTxDetail, setShowTxDetail] = useState(false);
 
   // Calculate Level State
-  // We iterate through levels to find the first incomplete one
   let currentLevelIndex = 0;
   for (let i = 0; i < LEVELS.length; i++) {
     const level = LEVELS[i];
@@ -37,19 +40,16 @@ export function BaseScoreTab({
       currentLevelIndex = i;
       break;
     }
-    // If it's the last level and all met, stay on last level
     if (i === LEVELS.length - 1) currentLevelIndex = i;
   }
 
   const currentLevel = LEVELS[currentLevelIndex];
   const nextLevel = LEVELS[currentLevelIndex + 1] || null;
 
-  // Calculate granular progress within the level
   const reqsMet = currentLevel.requirements.filter(req => req.check(stats)).length;
   const totalReqs = currentLevel.requirements.length;
   const progressPercent = (reqsMet / totalReqs) * 100;
 
-  // Format first transaction date
   const formatDate = (date: Date | null) => {
     if (!date) return 'N/A';
     return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
@@ -58,8 +58,7 @@ export function BaseScoreTab({
   if (isLoading) {
     return (
       <div className="space-y-5 animate-pulse">
-        {/* Simplified Skeleton for new Layout */}
-        <div className="bg-bg-card rounded-2xl p-6 border border-border flex justify-between">
+        <div className="glass-card rounded-2xl p-6 flex justify-between">
           <Skeleton className="w-24 h-24 rounded-full" />
           <div className="flex-1 ml-6 space-y-3">
             <Skeleton className="w-48 h-8 rounded-lg" />
@@ -68,7 +67,7 @@ export function BaseScoreTab({
         </div>
         <div className="grid grid-cols-2 gap-3">
           {[...Array(4)].map((_, i) => (
-            <Skeleton key={i} className="h-20 rounded-xl" />
+            <Skeleton key={i} className="h-24 rounded-2xl" />
           ))}
         </div>
       </div>
@@ -76,45 +75,42 @@ export function BaseScoreTab({
   }
 
   return (
-    <div className="space-y-5">
-      {/* 1. Level Progression Header (Replaces old Score Header) */}
-      <div className="bg-gradient-to-br from-bg-card to-bg-secondary rounded-2xl p-6 border border-border flex items-center justify-between animate-fade-in relative overflow-hidden">
-        {/* Background Glow */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-base-blue/5 blur-[80px] -z-10" />
+    <div className="space-y-6">
 
-        <div className="flex items-center gap-8">
+      {/* Level Progression Header */}
+      <div className="glass-card rounded-2xl p-6 animate-fade-in relative overflow-hidden">
+        {/* Background Gradient */}
+        <div className="absolute top-0 right-0 w-48 h-48 bg-accent-purple/10 blur-[80px] -z-10" />
+        <div className="absolute bottom-0 left-0 w-32 h-32 bg-accent-pink/5 blur-[60px] -z-10" />
+
+        <div className="flex items-center gap-6">
           <LevelRing
             currentLevel={currentLevel}
             nextLevel={nextLevel}
             progressPercent={progressPercent}
           />
 
-          <div className="space-y-1">
-            <h3 className="font-space-grotesk font-bold text-xl text-white">Current Mission</h3>
-            <p className="text-sm text-gray-400 max-w-xs leading-relaxed">
+          <div className="flex-1 space-y-2">
+            <p className="text-[9px] font-jetbrains-mono text-gray-500 uppercase tracking-[0.2em]">Current Mission</p>
+            <h3 className="font-space-grotesk font-bold text-lg text-white leading-tight">
               {currentLevel.description}
-            </p>
-            <div className="pt-2 flex items-center gap-2">
-              <span className="text-xs font-jetbrains-mono text-base-blue bg-base-blue/10 px-2 py-1 rounded">
+            </h3>
+            <div className="flex items-center gap-2 pt-1">
+              <span className="text-[10px] font-jetbrains-mono gradient-text px-2 py-1 rounded-full bg-accent-purple/10">
                 Reward: {currentLevel.reward}
               </span>
             </div>
           </div>
         </div>
-
-        {/* Global Rank (Mini) */}
-        <div className="text-right hidden sm:block">
-          <div className="text-3xl font-bold font-space-grotesk text-white">{baseScore}</div>
-          <div className="text-xs text-gray-500 font-jetbrains-mono uppercase">Total Score</div>
-        </div>
       </div>
 
-      {/* 2. Stats Grid (Kept the same, it's good) */}
+      {/* Stats Grid */}
       <div className="grid grid-cols-2 gap-3 animate-fade-in" style={{ animationDelay: '0.1s' }}>
         <StatCard
           label="On Base Since"
           value={formatDate(stats.firstTxDate)}
           subValue="early adopter"
+          color="purple"
         />
         <StatCard
           label="Days Active"
@@ -122,55 +118,71 @@ export function BaseScoreTab({
           subValue="unique days"
         />
         <StatCard
-          label="Tx Count"
+          label="Transactions"
           value={stats.totalTransactions.toLocaleString()}
-          subValue="total txs"
+          subValue="tap for details"
+          onClick={() => setShowTxDetail(true)}
         />
         <StatCard
           label="Volume"
           value={stats.totalVolume > 0 ? `$${Math.round(stats.totalVolume).toLocaleString()}` : '$0'}
-          subValue="real value"
+          subValue="total moved"
+          color={stats.totalVolume > 1000 ? 'success' : 'default'}
         />
       </div>
 
-      {/* 3. Level Requirements Checklist */}
+      {/* Level Requirements Checklist */}
       <div className="space-y-4 animate-fade-in" style={{ animationDelay: '0.2s' }}>
-        <div className="flex items-center justify-between">
-          <h3 className="font-space-grotesk font-bold">Level Requirements</h3>
-          <span className="text-xs text-gray-400 font-jetbrains-mono">
-            {reqsMet}/{totalReqs} Completed
+        <div className="flex items-center justify-between px-1">
+          <h3 className="font-space-grotesk font-bold text-white">Requirements</h3>
+          <span className="text-[10px] text-gray-500 font-jetbrains-mono">
+            <span className="gradient-text font-bold">{reqsMet}</span>/{totalReqs}
           </span>
         </div>
 
         <div className="space-y-2">
-          {currentLevel.requirements.map((req) => {
+          {currentLevel.requirements.map((req, index) => {
             const isMet = req.check(stats);
             return (
               <div
                 key={req.id}
-                className={`flex items-center gap-4 p-4 rounded-xl border transition-all duration-300 ${isMet
-                  ? 'bg-success/5 border-success/20'
-                  : 'bg-white/[0.02] border-white/[0.05] hover:border-white/10'
-                  }`}
+                className={`
+                  glass-card flex items-center gap-4 p-4 rounded-xl
+                  transition-all duration-500 ease-out
+                  animate-fade-in
+                  ${isMet
+                    ? 'border border-success/20 bg-success/5'
+                    : 'border border-white/[0.05] hover:border-white/10'
+                  }
+                `}
+                style={{ animationDelay: `${0.3 + index * 0.1}s` }}
               >
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center border ${isMet ? 'bg-success border-success text-black' : 'border-gray-600 text-transparent'
-                  }`}>
-                  {/* Simple Checkmark SVG */}
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                {/* Checkbox */}
+                <div className={`
+                  w-6 h-6 rounded-full flex items-center justify-center border-2
+                  transition-all duration-300
+                  ${isMet
+                    ? 'bg-gradient-to-br from-success to-success/70 border-success text-bg-primary animate-spring'
+                    : 'border-gray-600 text-transparent'
+                  }
+                `}>
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
                 </div>
 
+                {/* Text */}
                 <div className="flex-1">
                   <h4 className={`text-sm font-semibold ${isMet ? 'text-white' : 'text-gray-300'}`}>
                     {req.label}
                   </h4>
-                  <p className="text-xs text-gray-500">{req.description}</p>
+                  <p className="text-[11px] text-gray-500">{req.description}</p>
                 </div>
 
+                {/* Status Badge */}
                 {isMet && (
-                  <span className="text-[10px] font-jetbrains-mono uppercase text-success tracking-widest">
-                    Completed
+                  <span className="text-[9px] font-jetbrains-mono uppercase text-success tracking-widest bg-success/10 px-2 py-1 rounded-full">
+                    Done
                   </span>
                 )}
               </div>
@@ -178,6 +190,14 @@ export function BaseScoreTab({
           })}
         </div>
       </div>
+
+      {/* Transaction Detail Modal */}
+      <TransactionDetail
+        isOpen={showTxDetail}
+        onClose={() => setShowTxDetail(false)}
+        transactions={transactions}
+        totalCount={stats.totalTransactions}
+      />
     </div>
   );
 }
