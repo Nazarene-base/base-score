@@ -78,9 +78,12 @@ export function useWalletData(): UseWalletDataResult {
 
       const step1Stats: WalletStats = {
         ...INITIAL_STATS,
-        totalTransactions: fastData.txCount, // Estimation from nonce
+        totalTransactions: fastData.txCount, // SINGLE SOURCE OF TRUTH: Alchemy Nonce
         basename: fastData.basename
       };
+
+      // Store Alchemy tx count as the definitive value - NEVER OVERWRITE
+      const alchemyTxCount = fastData.txCount;
 
       // Update UI immediately
       setStats(step1Stats);
@@ -89,21 +92,25 @@ export function useWalletData(): UseWalletDataResult {
       setPercentile(getPercentileEstimate(step1Score.total));
 
       // STEP 2: HISTORY (BaseScan)
-      // "On Base Since" & Activity
+      // For "On Base Since", Days Active, Protocols - NOT for Tx Count
       console.time('HistoryFetch');
       const history = await fetchHistoryData(address);
       console.timeEnd('HistoryFetch');
 
       // Calculate Step 2 Stats (No prices yet)
-      const step2Stats = calculateWalletStats(
+      const calculatedStats = calculateWalletStats(
         history.transactions,
         history.tokenTransfers,
         history.nftTransfers,
         {} // No prices yet
       );
-      // MERGE PREVENTING REGRESSION: Use higher of Fast (Nonce) vs History (List)
-      step2Stats.totalTransactions = Math.max(step2Stats.totalTransactions, fastData.txCount);
-      step2Stats.basename = fastData.basename; // Keep basename
+
+      // SINGLE SOURCE OF TRUTH: Always use Alchemy for txCount
+      const step2Stats: WalletStats = {
+        ...calculatedStats,
+        totalTransactions: alchemyTxCount, // FIXED: Never use list length
+        basename: fastData.basename
+      };
 
       // Update UI
       setStats(step2Stats);
@@ -131,15 +138,20 @@ export function useWalletData(): UseWalletDataResult {
       const prices = await getTokenPrices(uniqueTokenAddresses as string[]);
       console.timeEnd('PriceFetch');
 
-      // Calculate Final Stats
-      const finalStats = calculateWalletStats(
+      // Calculate Final Stats with prices
+      const pricedStats = calculateWalletStats(
         history.transactions,
         history.tokenTransfers,
         history.nftTransfers,
         prices
       );
-      finalStats.basename = fastData.basename;
-      finalStats.totalTransactions = Math.max(finalStats.totalTransactions, fastData.txCount);
+
+      // SINGLE SOURCE OF TRUTH: Always use Alchemy for txCount
+      const finalStats: WalletStats = {
+        ...pricedStats,
+        totalTransactions: alchemyTxCount, // FIXED: Never use list length
+        basename: fastData.basename
+      };
 
       // Final Update
       setStats(finalStats);
