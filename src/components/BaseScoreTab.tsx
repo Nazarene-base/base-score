@@ -1,10 +1,10 @@
-// Base Score Tab - Shows activity score and checklist
 'use client';
 
 import { ScoreRing } from './ScoreRing';
 import { StatCard } from './StatCard';
 import { ChecklistItem } from './ChecklistItem';
 import type { WalletStats, ChecklistItem as ChecklistItemType } from '@/types';
+import { formatPercentile } from '@/utils/getRankInfo';
 
 interface BaseScoreTabProps {
   baseScore: number;
@@ -18,8 +18,8 @@ interface BaseScoreTabProps {
 export function BaseScoreTab({
   baseScore,
   percentile,
-  rank = 1247,
-  totalUsers = 156000,
+  rank = 0,
+  totalUsers = 0,
   stats,
   checklist,
 }: BaseScoreTabProps) {
@@ -38,19 +38,19 @@ export function BaseScoreTab({
       {/* Score Header Card */}
       <div className="bg-gradient-to-br from-bg-card to-bg-secondary rounded-2xl p-6 border border-border flex items-center gap-6 animate-fade-in">
         <ScoreRing score={baseScore} />
-        
+
         <div>
           {/* Percentile badge */}
           <div className="inline-block px-2.5 py-1 bg-success/15 rounded-full text-xs font-semibold text-success mb-2">
-            Top {100 - percentile}%
+            {formatPercentile(baseScore)}
           </div>
-          
+
           <div className="text-sm text-gray-400 mb-1">
-            Rank #{rank.toLocaleString()}
+            {rank > 0 ? `Rank #${rank.toLocaleString()}` : 'Unranked'}
           </div>
-          
+
           <div className="text-xs text-gray-500">
-            of {totalUsers.toLocaleString()} users
+            {totalUsers > 0 ? `of ${totalUsers.toLocaleString()} users` : 'Join the leaderboard'}
           </div>
         </div>
       </div>
@@ -58,45 +58,44 @@ export function BaseScoreTab({
       {/* Stats Grid */}
       <div className="grid grid-cols-2 gap-3 animate-fade-in" style={{ animationDelay: '0.1s' }}>
         <StatCard
-          label="Transactions"
-          value={stats.totalTransactions}
-          subValue={`${stats.daysActive} days active`}
-        />
-        <StatCard
-          label="Protocols"
-          value={stats.uniqueProtocols}
-          subValue="unique interactions"
-        />
-        <StatCard
-          label="Volume"
-          value={`$${stats.totalVolume.toLocaleString()}`}
-          subValue="total traded"
-        />
-        <StatCard
           label="On Base Since"
           value={formatDate(stats.firstTxDate)}
           subValue="early adopter"
         />
+        <StatCard
+          label="Days Active"
+          value={stats.daysActive.toString()}
+          subValue="unique days"
+        />
+        <StatCard
+          label="Tx Count"
+          value={stats.totalTransactions.toLocaleString()}
+          subValue="total txs"
+        />
+        <StatCard
+          label="Volume"
+          value={stats.totalVolume > 0 ? `$${Math.round(stats.totalVolume).toLocaleString()}` : '$0'}
+          subValue="total swapped"
+        />
       </div>
 
-      {/* Checklist Section */}
-      <div className="animate-fade-in" style={{ animationDelay: '0.2s' }}>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-base font-semibold">Airdrop Checklist</h3>
-          <span className="text-sm text-success font-mono">
-            {completedTasks}/{totalTasks}
+      {/* Protocol Checklist */}
+      <div className="space-y-4 animate-fade-in" style={{ animationDelay: '0.2s' }}>
+        <div className="flex items-center justify-between">
+          <h3 className="font-space-grotesk font-bold">Base Checklist</h3>
+          <span className="text-xs text-gray-400 font-jetbrains-mono">
+            {completedTasks}/{totalTasks} Completed
           </span>
         </div>
 
-        {/* Progress bar */}
-        <div className="h-1.5 bg-bg-tertiary rounded-full mb-4 overflow-hidden">
+        {/* Progress Bar */}
+        <div className="h-1 bg-white/5 rounded-full overflow-hidden">
           <div
-            className="h-full bg-gradient-to-r from-base-blue to-success rounded-full transition-all duration-500"
+            className="h-full bg-base-blue transition-all duration-1000 ease-out"
             style={{ width: `${progressPercent}%` }}
           />
         </div>
 
-        {/* Checklist items */}
         <div className="space-y-2">
           {checklist.map((item, index) => (
             <ChecklistItem key={item.id} item={item} index={index} />

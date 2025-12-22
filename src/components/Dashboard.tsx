@@ -6,7 +6,7 @@ import { useAccount, useDisconnect } from 'wagmi';
 import { useWalletData } from '@/hooks/useWalletData';
 import { BaseScoreTab } from './BaseScoreTab';
 import { PnLTab } from './PnLTab';
-import ScoreHero from './ScoreCard'; 
+import ScoreHero from './ScoreCard';
 import { RefreshIcon } from './Icons';
 
 type TabId = 'score' | 'pnl';
@@ -16,7 +16,7 @@ export function Dashboard() {
   const [farcasterUser, setFarcasterUser] = useState<any>(null);
   const { address } = useAccount();
   const { disconnect } = useDisconnect();
-  
+
   const {
     isLoading,
     error,
@@ -79,10 +79,10 @@ export function Dashboard() {
         {farcasterUser && (
           <div className="flex items-center gap-4 mb-14 animate-fade-in">
             <div className="relative">
-              <img 
-                src={farcasterUser.pfpUrl} 
-                className="w-12 h-12 rounded-full grayscale hover:grayscale-0 transition-all duration-1000 border border-white/10" 
-                alt="pfp" 
+              <img
+                src={farcasterUser.pfpUrl}
+                className="w-12 h-12 rounded-full grayscale hover:grayscale-0 transition-all duration-1000 border border-white/10"
+                alt="pfp"
               />
               <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-bg-primary rounded-full flex items-center justify-center">
                 <div className="w-2.5 h-2.5 bg-green-500 rounded-full border border-bg-primary" />
@@ -98,7 +98,7 @@ export function Dashboard() {
         {/* 4. The Hero Component */}
         {activeTab === 'score' && (
           <div className="mb-14">
-            <ScoreHero score={baseScore} />
+            <ScoreHero score={baseScore} percentile={percentile} />
           </div>
         )}
 
@@ -111,9 +111,8 @@ export function Dashboard() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`pb-4 text-[10px] font-jetbrains-mono uppercase tracking-[0.3em] transition-all relative ${
-                activeTab === tab.id ? 'text-white' : 'text-gray-600 hover:text-gray-300'
-              }`}
+              className={`pb-4 text-[10px] font-jetbrains-mono uppercase tracking-[0.3em] transition-all relative ${activeTab === tab.id ? 'text-white' : 'text-gray-600 hover:text-gray-300'
+                }`}
             >
               {tab.label}
               {activeTab === tab.id && (
@@ -147,7 +146,7 @@ export function Dashboard() {
 
         {/* 7. Institutional-Grade Sharing */}
         <div className="mt-16 pt-8 border-t border-white/[0.03] flex justify-center">
-          <button 
+          <button
             onClick={() => {
               const shareText = encodeURIComponent(`Base Score: ${baseScore} | Percentile: ${percentile}\n\nAnalyzing my on-chain footprint on @base.`);
               const shareUrl = encodeURIComponent(`https://base-score-neon.vercel.app`);

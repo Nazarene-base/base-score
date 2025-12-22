@@ -60,26 +60,39 @@ export function useWalletData(): UseWalletDataResult {
     fetchData();
   }, [fetchData]);
 
-  // Generate mock P&L data (would need more sophisticated tracking in production)
-  const pnl: PnLData | null = stats
+  // Debug logging as requested
+  useEffect(() => {
+    if (address && stats) {
+      console.log('--------------------------------------------------');
+      console.log('👛 Wallet Address:', address);
+      console.log('📊 Fetched Transactions:', stats.totalTransactions);
+      console.log('🔢 Calculated Score:', baseScore);
+      console.log('🌐 Protocol Interactions:', stats.uniqueProtocols);
+      console.log('--------------------------------------------------');
+    }
+  }, [address, stats, baseScore]);
+
+  // Generate mock P&L data ONLY if we have actual trades
+  // In a real app, this would be calculated from historical price data
+  const pnl: PnLData | null = (stats && recentTrades.length > 0)
     ? {
-        totalPnL: Math.random() * 5000 - 1000, // Mock
-        totalPnLPercent: Math.random() * 100 - 20,
-        winRate: 50 + Math.random() * 30,
-        totalTrades: recentTrades.length,
-        bestTrade: {
-          token: recentTrades[0]?.token || 'ETH',
-          profit: Math.random() * 1000,
-          percent: Math.random() * 200,
-        },
-        worstTrade: {
-          token: recentTrades[1]?.token || 'USDC',
-          loss: -(Math.random() * 500),
-          percent: -(Math.random() * 50),
-        },
-        last7Days: Math.random() * 1000 - 200,
-        last30Days: Math.random() * 3000 - 500,
-      }
+      totalPnL: Math.random() * 5000 - 1000, // Mock based on activity
+      totalPnLPercent: Math.random() * 100 - 20,
+      winRate: 50 + Math.random() * 30,
+      totalTrades: recentTrades.length,
+      bestTrade: {
+        token: recentTrades[0]?.token || 'ETH',
+        profit: Math.random() * 1000,
+        percent: Math.random() * 200,
+      },
+      worstTrade: {
+        token: recentTrades[1]?.token || 'USDC',
+        loss: -(Math.random() * 500),
+        percent: -(Math.random() * 50),
+      },
+      last7Days: Math.random() * 1000 - 200,
+      last30Days: Math.random() * 3000 - 500,
+    }
     : null;
 
   return {

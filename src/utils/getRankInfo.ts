@@ -95,12 +95,12 @@ export function getNextRank(currentScore: number): RankInfo | null {
 export function getProgressToNextRank(score: number): number {
   const currentRank = getRankInfo(score);
   const nextRank = getNextRank(score);
-  
+
   if (!nextRank) return 100; // Already at max rank
-  
+
   const rangeSize = nextRank.minScore - currentRank.minScore;
   const progress = score - currentRank.minScore;
-  
+
   return Math.min(Math.round((progress / rangeSize) * 100), 100);
 }
 
@@ -109,9 +109,9 @@ export function getProgressToNextRank(score: number): number {
  */
 export function getPointsToNextRank(score: number): number {
   const nextRank = getNextRank(score);
-  
+
   if (!nextRank) return 0; // Already at max rank
-  
+
   return Math.max(nextRank.minScore - score, 0);
 }
 
@@ -145,7 +145,7 @@ export function getPercentileEstimate(score: number): number {
   // Builder (201-500): 40-80% (middle 40%)
   // Native (501-800): 80-99% (top 19%)
   // Governor (801-1000): Top 1%
-  
+
   if (score <= 200) {
     // Linear interpolation in bottom 40%
     return Math.round((score / 200) * 40);
@@ -170,7 +170,11 @@ export function getPercentileEstimate(score: number): number {
 export function formatPercentile(score: number): string {
   const percentile = getPercentileEstimate(score);
   const topPercentile = 100 - percentile;
-  
+
+  if (score <= 200 || topPercentile >= 99) {
+    return 'Newcomer'; // Better than "Top 100%"
+  }
+
   if (topPercentile <= 1) {
     return 'Top 1%';
   } else if (topPercentile <= 5) {

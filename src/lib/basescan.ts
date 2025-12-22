@@ -358,6 +358,11 @@ export async function fetchWalletData(address: string): Promise<{
     console.error('❌ CRITICAL: No API key found!');
     console.error('Set NEXT_PUBLIC_BASESCAN_API_KEY in .env.local');
     console.error('Get key from: https://etherscan.io/myapikey');
+  } else {
+    console.log('--------------------------------------------------');
+    console.log('🔍 Starting Data Fetch for:', address);
+    console.log('🔑 API Key Loaded (Length):', API_KEY.length);
+    console.log('--------------------------------------------------');
   }
 
   // Fetch all data in parallel
