@@ -2,11 +2,28 @@ import type { WalletStats } from '@/types';
 
 export type LevelId = 'citizen' | 'explorer' | 'culture' | 'liquidity' | 'native';
 
+// L-6 FIX: Extracted thresholds for easier tuning
+export const LEVEL_THRESHOLDS = {
+    // Level 2
+    MIN_TOKENS_HELD: 3,
+    // Level 3
+    MIN_PROTOCOLS_L3: 4,
+    MIN_DAYS_ACTIVE: 7,
+    // Level 4
+    MIN_VOLUME_L4: 1000,
+    MIN_TXS_L4: 50,
+    // Level 5
+    MIN_WALLET_AGE_MONTHS: 6,
+    MIN_TXS_L5: 200,
+    MIN_VOLUME_L5: 10000,
+    MIN_PROTOCOLS_L5: 6,
+} as const;
+
 export interface LevelRequirement {
     id: string;
     label: string;
     description: string;
-    check: (stats: WalletStats) => boolean; // Type-safe with WalletStats
+    check: (stats: WalletStats) => boolean;
 }
 
 export interface Level {

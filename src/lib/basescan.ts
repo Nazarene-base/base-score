@@ -9,11 +9,9 @@ import {
   ChecklistItem,
   Trade,
   TRACKED_PROTOCOLS,
-  PnLData,
 } from '@/types';
 
-import { calculateBaseScore, getBaseScore } from '@/utils/calculateScore';
-import { formatPercentile, getPercentileEstimate } from '@/utils/getRankInfo';
+// L-3 FIX: Only import what's used in this file
 import { getTokenPrices } from './price';
 import { getBasename } from './basename';
 
@@ -23,11 +21,25 @@ const BASESCAN_API = 'https://api.etherscan.io/v2/api';
 // Get Etherscan API V2 key from environment
 const API_KEY = process.env.NEXT_PUBLIC_BASESCAN_API_KEY || '';
 
-// Debug logging
-if (typeof window !== 'undefined') {
-  console.log('🔑 Etherscan API V2 Key Status:', API_KEY ? '✓ Loaded' : '✗ Missing');
-  console.log('📏 Key Length:', API_KEY.length, 'chars');
-  console.log('🌐 API Endpoint:', BASESCAN_API);
+// M-5 FIX: Conditional debug logging (only in development)
+const isDev = process.env.NODE_ENV === 'development';
+
+function log(...args: any[]) {
+  if (isDev) console.log(...args);
+}
+
+function logWarn(...args: any[]) {
+  if (isDev) console.warn(...args);
+}
+
+function logError(...args: any[]) {
+  console.error(...args); // Always log errors
+}
+
+// Debug logging (development only)
+if (typeof window !== 'undefined' && isDev) {
+  log('🔑 Etherscan API V2 Key Status:', API_KEY ? '✓ Loaded' : '✗ Missing');
+  log('🌐 API Endpoint:', BASESCAN_API);
 }
 
 // Get ETH balance for an address
@@ -233,30 +245,33 @@ export function calculateWalletStats(
       .map((tx) => tx.to.toLowerCase())
   );
 
-  // Gas spent in ETH
+  // Gas spent in ETH - M-1 FIX: Safe BigInt parsing
   const gasSpent = transactions.reduce((acc, tx) => {
-    const gasUsed = BigInt(tx.gasUsed || '0');
-    const gasPrice = BigInt(tx.gasPrice || '0');
-    return acc + (Number(gasUsed * gasPrice) / 1e18);
+    try {
+      const gasUsed = BigInt(tx.gasUsed || '0');
+      const gasPrice = BigInt(tx.gasPrice || '0');
+      return acc + (Number(gasUsed * gasPrice) / 1e18);
+    } catch {
+      return acc; // Skip malformed data
+    }
   }, 0);
 
   // Calculate Volume with Real Prices
   const wethPrice = tokenPrices['0x4200000000000000000000000000000000000006'] || 2500;
   const ethVolume = transactions.reduce((acc, tx) => {
-    // Only count outgoing transfers or contract calls with value
     return acc + (Number(tx.value) / 1e18);
   }, 0);
   const ethVolumeUSD = ethVolume * wethPrice;
 
-  // Token Transfers
+  // Token Transfers - M-2 FIX: Cap decimals to prevent overflow
   const tokenVolumeUSD = tokenTransfers.reduce((acc, transfer) => {
     const contractAddr = transfer.contractAddress?.toLowerCase();
     const price = tokenPrices[contractAddr] || 0;
     if (!price) return acc;
-    const decimals = Number(transfer.tokenDecimal || 18);
-    // Safety check for bad data
-    if (transfer.value.length > 30) return acc;
+    const decimals = Math.min(Number(transfer.tokenDecimal || 18), 18); // Cap at 18
+    if (transfer.value.length > 30) return acc; // Safety check
     const valueObj = Number(transfer.value) / Math.pow(10, decimals);
+    if (!isFinite(valueObj)) return acc; // Skip if overflow
     return acc + (valueObj * price);
   }, 0);
 
@@ -482,47 +497,6 @@ export async function fetchHistoryData(address: string) {
   };
 }
 
-// Main data fetching function (Legacy/Full)
-export async function fetchWalletData(address: string): Promise<{
-  stats: WalletStats;
-  checklist: ChecklistItem[];
-  baseScore: number;
-  percentile: number;
-  recentTrades: Trade[];
-}> {
-  // ... (keep existing implementation for backward compatibility or refactor to use above)
-  const { ethBalance, basename } = await fetchFastData(address);
-  // ...
-  const { transactions, tokenTransfers, nftTransfers } = await fetchHistoryData(address);
-  // ...
-  // Collect unique token addresses
-  const uniqueTokenAddresses = Array.from(new Set(
-    tokenTransfers
-      .map(t => t.contractAddress?.toLowerCase())
-      .filter(addr => addr && addr.startsWith('0x'))
-  )).slice(0, 30);
-
-  // Add WETH if missing
-  if (!uniqueTokenAddresses.includes('0x4200000000000000000000000000000000000006')) {
-    uniqueTokenAddresses.push('0x4200000000000000000000000000000000000006');
-  }
-
-  const tokenPrices = await getTokenPrices(uniqueTokenAddresses as string[]);
-
-  const stats = calculateWalletStats(transactions, tokenTransfers, nftTransfers, tokenPrices);
-  stats.basename = basename;
-
-  const checklist = generateChecklist(transactions, tokenTransfers, nftTransfers);
-  const scoreBreakdown = calculateBaseScore(stats, ethBalance);
-  const baseScore = scoreBreakdown.total;
-  const percentile = getPercentileEstimate(baseScore);
-  const recentTrades = parseRecentTrades(tokenTransfers, address);
-
-  return {
-    stats,
-    checklist,
-    baseScore,
-    percentile,
-    recentTrades,
-  };
-}
+// M-3 FIX: Legacy fetchWalletData function removed
+// Use fetchFastData + fetchHistoryData + calculateWalletStats directly instead
+// See useWalletData.ts for the recommended pattern

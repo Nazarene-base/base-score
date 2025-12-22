@@ -18,7 +18,12 @@ export const config = createConfig({
     injected(),
   ],
   transports: {
-    [base.id]: http(`https://base-mainnet.g.alchemy.com/v2/${process.env.NEXT_PUBLIC_ALCHEMY_API_KEY}`),
+    // M-4 FIX: RPC fallback - if Alchemy fails, use public Base RPC
+    [base.id]: http(
+      process.env.NEXT_PUBLIC_ALCHEMY_API_KEY
+        ? `https://base-mainnet.g.alchemy.com/v2/${process.env.NEXT_PUBLIC_ALCHEMY_API_KEY}`
+        : 'https://mainnet.base.org'
+    ),
   },
   ssr: true,
 });

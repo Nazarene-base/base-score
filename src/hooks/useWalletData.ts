@@ -3,8 +3,7 @@ import { useAccount } from 'wagmi';
 import {
   fetchFastData,
   fetchHistoryData,
-  calculateWalletStats, // Need this exported
-  fetchWalletData // Legacy fallback
+  calculateWalletStats,
 } from '@/lib/basescan';
 import { calculateBaseScore } from '@/utils/calculateScore';
 import { getPercentileEstimate } from '@/utils/getRankInfo';
