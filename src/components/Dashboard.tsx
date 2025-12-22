@@ -1,5 +1,3 @@
-'use client';
-
 import { useState, useEffect } from 'react';
 import sdk from '@farcaster/frame-sdk';
 import { useAccount, useDisconnect } from 'wagmi';
@@ -7,6 +5,7 @@ import { useWalletData } from '@/hooks/useWalletData';
 import { BaseScoreTab } from './BaseScoreTab';
 import { PnLTab } from './PnLTab';
 import { CompareTab } from './CompareTab';
+import { BootSequence } from './BootSequence'; // NEW
 import ScoreHero from './ScoreCard';
 import { RefreshIcon } from './Icons';
 
@@ -17,6 +16,7 @@ type TabId = 'score' | 'pnl' | 'compare' | 'profile';
 export function Dashboard() {
   const [activeTab, setActiveTab] = useState<TabId>('score');
   const [farcasterUser, setFarcasterUser] = useState<any>(null);
+  const [showIntro, setShowIntro] = useState(true); // Control cinematic
   const { address } = useAccount();
   const { disconnect } = useDisconnect();
 
@@ -30,8 +30,10 @@ export function Dashboard() {
     recentTrades,
     pnl,
     refetch,
+    lastFetched
   } = useWalletData();
 
+  // Farcaster Init
   useEffect(() => {
     const init = async () => {
       const context = await sdk.context;
@@ -44,6 +46,16 @@ export function Dashboard() {
   }, []);
 
   const shortAddress = address ? `${address.slice(0, 6)}...${address.slice(-4)}` : '';
+
+  // CINEMATIC: Show Boot Sequence until data is ready AND user watches it
+  if (showIntro) {
+    return (
+      <BootSequence
+        isDataReady={!!stats && !isLoading} // Tell intro when to finish
+        onComplete={() => setShowIntro(false)} // Callback when animation ends
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-bg-primary text-white selection:bg-base-blue pb-[calc(80px+env(safe-area-inset-bottom))]">
