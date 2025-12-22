@@ -126,7 +126,9 @@ export function Dashboard() {
                 daysActive: 0,
                 gasSpent: 0,
                 nftsMinted: 0,
-                bridgeTransactions: 0
+                bridgeTransactions: 0,
+                tokenCount: 0,
+                hasDexActivity: false
               }}
               checklist={checklist}
               isLoading={isLoading}

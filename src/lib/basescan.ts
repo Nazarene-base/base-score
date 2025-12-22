@@ -183,6 +183,8 @@ export function calculateWalletStats(
       gasSpent: 0,
       nftsMinted: 0,
       bridgeTransactions: 0,
+      tokenCount: 0,
+      hasDexActivity: false,
     };
   }
 
@@ -261,6 +263,13 @@ export function calculateWalletStats(
     gasSpent: Math.round(gasSpent * 10000) / 10000,
     nftsMinted: nftTransfers.length,
     bridgeTransactions,
+    tokenCount: new Set(tokenTransfers.map(t => t.contractAddress)).size,
+    hasDexActivity: transactions.some(tx => {
+      const dexContracts = TRACKED_PROTOCOLS
+        .filter(p => p.category === 'dex')
+        .flatMap(p => p.contracts.map(c => c.toLowerCase()));
+      return dexContracts.includes(tx.to?.toLowerCase() || '');
+    }),
   };
 
   console.log('✅ Stats:', stats);

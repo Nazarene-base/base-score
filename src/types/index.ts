@@ -10,6 +10,8 @@ export interface WalletStats {
   nftsMinted: number;
   bridgeTransactions: number;
   basename?: string | null;
+  tokenCount: number;
+  hasDexActivity: boolean;
 }
 
 export interface Trade {

@@ -55,13 +55,13 @@ export const LEVELS: Level[] = [
                 id: 'swap',
                 label: 'Execute a Swap',
                 description: 'Swap tokens on Uniswap or Aerodrome',
-                check: (stats) => stats.uniqueProtocols > 0,
+                check: (stats) => stats.hasDexActivity,
             },
             {
                 id: 'hold_3',
                 label: 'Hold 3+ Tokens',
                 description: 'Diversify your portfolio',
-                check: (stats) => false, // TODO: Implement token count check
+                check: (stats) => stats.tokenCount >= 3,
             },
         ],
     },

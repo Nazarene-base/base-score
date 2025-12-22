@@ -35,6 +35,8 @@ const INITIAL_STATS: WalletStats = {
   nftsMinted: 0,
   bridgeTransactions: 0,
   basename: null,
+  tokenCount: 0,
+  hasDexActivity: false,
 };
 
 export function useWalletData(): UseWalletDataResult {
