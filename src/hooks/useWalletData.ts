@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAccount } from 'wagmi';
 import {
   fetchFastData,
@@ -77,23 +77,27 @@ export function useWalletData(): UseWalletDataResult {
   const [error, setError] = useState<string | null>(null);
 
   const [stats, setStats] = useState<WalletStats | null>(null);
-  const [ethBalance, setEthBalance] = useState(0); // Store separately for progressive updates
+  const [ethBalance, setEthBalance] = useState(0);
   const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
   const [baseScore, setBaseScore] = useState(0);
   const [percentile, setPercentile] = useState(0);
   const [recentTrades, setRecentTrades] = useState<Trade[]>([]);
 
   const [lastFetched, setLastFetched] = useState<Date | null>(null);
-  const [transactions, setTransactions] = useState<any[]>([]); // NEW
+  const [transactions, setTransactions] = useState<any[]>([]);
+
+  // FIX C-1: Track current fetch to prevent race conditions
+  const currentFetchRef = useRef<number>(0);
 
   const fetchData = useCallback(async () => {
-    // Race Condition Guard
-    const abortController = new AbortController();
+    // FIX C-1: Race condition guard - increment fetch ID
+    const fetchId = ++currentFetchRef.current;
+    const isCurrent = () => fetchId === currentFetchRef.current;
 
     console.log('📊 useWalletData.fetchData called:', {
       address: address || 'NO ADDRESS',
       isConnected,
-      hasData: !!address && isConnected
+      fetchId
     });
 
     if (!address || !isConnected) {
@@ -107,11 +111,45 @@ export function useWalletData(): UseWalletDataResult {
       return;
     }
 
-    console.log('✅ Fetching data for address:', address);
+    // FIX H-1: Validate address format
+    if (!/^0x[a-fA-F0-9]{40}$/.test(address)) {
+      console.error('❌ Invalid address format:', address);
+      setError('Invalid wallet address');
+      return;
+    }
+
+    // FIX H-3: Check cache before fetching
+    const cached = getCachedData(address);
+    if (cached) {
+      console.log('📦 Using cached data');
+      const { fastData, history } = cached;
+      const realTxCount = history.transactions.length + history.tokenTransfers.length;
+      const cachedStats = calculateWalletStats(
+        history.transactions,
+        history.tokenTransfers,
+        history.nftTransfers,
+        {},
+        realTxCount,
+        fastData.firstTxDate,
+        fastData.ethBalance
+      );
+      cachedStats.basename = fastData.basename;
+      cachedStats.isApproximate = history.isApproximate;
+
+      setStats(cachedStats);
+      setEthBalance(fastData.ethBalance);
+      setTransactions(history.transactions);
+      setChecklist(generateChecklist(history.transactions, history.tokenTransfers, history.nftTransfers));
+      const score = calculateBaseScore(cachedStats, fastData.ethBalance);
+      setBaseScore(score.total);
+      setPercentile(getPercentileEstimate(score.total));
+      setLastFetched(new Date(cached.timestamp));
+      return;
+    }
+
+    console.log('✅ Fetching fresh data for address:', address);
     setIsLoading(true);
     setError(null);
-    // setStats(INITIAL_STATS); // Don't reset to empty, keep null to show skeletons until Step 1
-
 
     try {
       // STEP 1: FAST (Alchemy)
@@ -120,62 +158,51 @@ export function useWalletData(): UseWalletDataResult {
       const fastData = await fetchFastData(address);
       console.timeEnd('FastFetch');
 
+      // FIX C-1: Check if this fetch is still current
+      if (!isCurrent()) {
+        console.log('⚠️ Fetch aborted - wallet changed');
+        return;
+      }
+
       setEthBalance(fastData.ethBalance);
 
-      const step1Stats: WalletStats = {
-        ...INITIAL_STATS,
-        totalTransactions: 0, // Will be populated by BaseScan history
-        firstTxDate: fastData.firstTxDate,   // SINGLE SOURCE OF TRUTH: Dedicated API call
-        basename: fastData.basename
-      };
-
-      // Store authoritative first tx date - NEVER OVERWRITE
-      const authoritativeFirstTxDate = fastData.firstTxDate;
-
-      // Update UI immediately
-      setStats(step1Stats);
-      const step1Score = calculateBaseScore(step1Stats, fastData.ethBalance);
-      setBaseScore(step1Score.total);
-      setPercentile(getPercentileEstimate(step1Score.total));
-
-      // STEP 2: HISTORY (BaseScan)
-      // For Days Active, Protocols - NOT for Tx Count or First Date
       console.time('HistoryFetch');
       const history = await fetchHistoryData(address);
       console.timeEnd('HistoryFetch');
 
-      // REAL TRANSACTION COUNT: Use BaseScan history length (includes both sent AND received)
-      // Alchemy's txCount is the NONCE (outgoing only) - NOT what the user expects
+      // FIX C-1: Check if this fetch is still current
+      if (!isCurrent()) {
+        console.log('⚠️ Fetch aborted - wallet changed');
+        return;
+      }
+
+      const authoritativeFirstTxDate = fastData.firstTxDate;
       const realTxCount = history.transactions.length + history.tokenTransfers.length;
 
-      // Calculate Step 2 Stats
       const calculatedStats = calculateWalletStats(
         history.transactions,
         history.tokenTransfers,
         history.nftTransfers,
-        {}, // No prices yet
-        realTxCount,           // AUTHORITATIVE: From BaseScan history
-        authoritativeFirstTxDate, // AUTHORITATIVE: From Dedicated Age
-        fastData.ethBalance    // NEW: For Level checks
+        {},
+        realTxCount,
+        authoritativeFirstTxDate,
+        fastData.ethBalance
       );
 
-      // SINGLE SOURCE OF TRUTH: Override with authoritative values
       const step2Stats: WalletStats = {
         ...calculatedStats,
-        totalTransactions: realTxCount,       // FIXED: From BaseScan (all txs)
-        firstTxDate: authoritativeFirstTxDate,    // FIXED: From dedicated API
+        totalTransactions: realTxCount,
+        firstTxDate: authoritativeFirstTxDate,
         basename: fastData.basename,
-        isApproximate: history.isApproximate      // Flag if >5000 txs
+        isApproximate: history.isApproximate
       };
 
-      // Update UI
       setStats(step2Stats);
       const step2Score = calculateBaseScore(step2Stats, fastData.ethBalance);
       setBaseScore(step2Score.total);
-      setPercentile(getPercentileEstimate(step2Score.total));
-      setPercentile(getPercentileEstimate(step2Score.total));
+      setPercentile(getPercentileEstimate(step2Score.total)); // FIX H-2: Removed duplicate
       setChecklist(generateChecklist(history.transactions, history.tokenTransfers, history.nftTransfers));
-      setTransactions(history.transactions); // NEW: Store raw list
+      setTransactions(history.transactions);
 
       // STEP 3: SLOW (Prices / Gecko)
       // Volume & PnL
@@ -195,6 +222,12 @@ export function useWalletData(): UseWalletDataResult {
 
       const prices = await getTokenPrices(uniqueTokenAddresses as string[]);
       console.timeEnd('PriceFetch');
+
+      // FIX C-1: Check if this fetch is still current before final update
+      if (!isCurrent()) {
+        console.log('⚠️ Fetch aborted - wallet changed');
+        return;
+      }
 
       // Calculate Final Stats with prices
       const pricedStats = calculateWalletStats(
