@@ -196,12 +196,28 @@ export function calculateWalletStats(
     return acc + (Number(gasUsed * gasPrice) / 1e18);
   }, 0);
 
-  // Token transfer volume (simplified)
-  const totalVolume = tokenTransfers.reduce((acc, transfer) => {
-    const decimals = Number(transfer.tokenDecimal || 18);
-    const value = Number(transfer.value) / Math.pow(10, decimals);
-    return acc + value;
+  // Calculate Volume (Conservative Estimate)
+  // 1. Native ETH Transfers
+  const ethVolume = transactions.reduce((acc, tx) => {
+    return acc + (Number(tx.value) / 1e18);
   }, 0);
+
+  // 2. Stablecoin Transfers (USDC, USDT, DAI)
+  // We filter to avoid "1 unit = $1" error for low-value tokens
+  const STABLECOINS = ['USDC', 'USDT', 'DAI', 'USDbC'];
+
+  const tokenVolume = tokenTransfers.reduce((acc, transfer) => {
+    if (!STABLECOINS.includes(transfer.tokenSymbol?.toUpperCase())) {
+      return acc;
+    }
+    const decimals = Number(transfer.tokenDecimal || 18);
+    return acc + (Number(transfer.value) / Math.pow(10, decimals));
+  }, 0);
+
+  // Note: This assumes ETH price approx $2500 for the ETH portion if we wanted USD
+  // For now, we'll just sum them as "units of value" but it's much safer than before
+  // A better approach in Phase 2 is using GeckoTerminal for real prices
+  const totalVolume = (ethVolume * 2500) + tokenVolume; // Approx $2500/ETH for rough estimate
 
   // First transaction date
   const allTxs = [...transactions, ...tokenTransfers].sort(
