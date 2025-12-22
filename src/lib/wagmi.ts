@@ -18,7 +18,7 @@ export const config = createConfig({
     injected(),
   ],
   transports: {
-    [base.id]: http(),
+    [base.id]: http(`https://base-mainnet.g.alchemy.com/v2/${process.env.NEXT_PUBLIC_ALCHEMY_API_KEY}`),
   },
   ssr: true,
 });

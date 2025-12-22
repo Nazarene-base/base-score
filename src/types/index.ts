@@ -9,6 +9,7 @@ export interface WalletStats {
   gasSpent: number;
   nftsMinted: number;
   bridgeTransactions: number;
+  basename?: string | null;
 }
 
 export interface Trade {

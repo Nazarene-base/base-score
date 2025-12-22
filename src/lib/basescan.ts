@@ -15,6 +15,7 @@ import {
 import { calculateBaseScore, getBaseScore } from '@/utils/calculateScore';
 import { formatPercentile, getPercentileEstimate } from '@/utils/getRankInfo';
 import { getTokenPrices } from './price';
+import { getBasename } from './basename';
 
 // Base network endpoint (part of Etherscan API V2)
 const BASESCAN_API = 'https://api.etherscan.io/v2/api';
@@ -391,10 +392,11 @@ export async function fetchWalletData(address: string): Promise<{
   // Fetch all data in parallel
   console.log('⏳ Fetching data from Etherscan API V2...');
 
-  const [transactions, tokenTransfers, nftTransfers] = await Promise.all([
+  const [transactions, tokenTransfers, nftTransfers, basename] = await Promise.all([
     getTransactions(address),
     getTokenTransfers(address),
     getNFTTransfers(address),
+    getBasename(address),
   ]);
 
   console.log('✅ All API calls complete');
@@ -419,6 +421,8 @@ export async function fetchWalletData(address: string): Promise<{
 
   // Calculate everything
   const stats = calculateWalletStats(transactions, tokenTransfers, nftTransfers, tokenPrices);
+  stats.basename = basename; // Attach Basename to stats
+
   const checklist = generateChecklist(transactions, tokenTransfers, nftTransfers);
 
   // NEW: Use 3-pillar scoring
