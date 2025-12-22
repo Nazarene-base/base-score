@@ -9,10 +9,12 @@ import {
   ChecklistItem,
   Trade,
   TRACKED_PROTOCOLS,
+  PnLData,
 } from '@/types';
 
 import { calculateBaseScore, getBaseScore } from '@/utils/calculateScore';
 import { formatPercentile, getPercentileEstimate } from '@/utils/getRankInfo';
+import { getTokenPrices } from './price';
 
 // Base network endpoint (part of Etherscan API V2)
 const BASESCAN_API = 'https://api.etherscan.io/v2/api';
@@ -159,7 +161,8 @@ export async function getNFTTransfers(address: string): Promise<BaseScanTokenTra
 export function calculateWalletStats(
   transactions: BaseScanTransaction[],
   tokenTransfers: BaseScanTokenTransfer[],
-  nftTransfers: BaseScanTokenTransfer[]
+  nftTransfers: BaseScanTokenTransfer[],
+  tokenPrices: Record<string, number> = {}
 ): WalletStats {
   console.log('📊 Calculating stats:', {
     txs: transactions.length,
@@ -196,28 +199,32 @@ export function calculateWalletStats(
     return acc + (Number(gasUsed * gasPrice) / 1e18);
   }, 0);
 
-  // Calculate Volume (Conservative Estimate)
-  // 1. Native ETH Transfers
+  // Calculate Volume with Real Prices
+  // 1. Native ETH Transfers (Price approx $2500 if NO price found, else use real WETH price)
+  const wethPrice = tokenPrices['0x4200000000000000000000000000000000000006'] || 2500;
   const ethVolume = transactions.reduce((acc, tx) => {
     return acc + (Number(tx.value) / 1e18);
   }, 0);
+  const ethVolumeUSD = ethVolume * wethPrice;
 
-  // 2. Stablecoin Transfers (USDC, USDT, DAI)
-  // We filter to avoid "1 unit = $1" error for low-value tokens
-  const STABLECOINS = ['USDC', 'USDT', 'DAI', 'USDbC'];
+  // 2. Token Transfers using Real GeckoTerminal Prices
+  const tokenVolumeUSD = tokenTransfers.reduce((acc, transfer) => {
+    const contractAddr = transfer.contractAddress?.toLowerCase();
+    const price = tokenPrices[contractAddr] || 0;
 
-  const tokenVolume = tokenTransfers.reduce((acc, transfer) => {
-    if (!STABLECOINS.includes(transfer.tokenSymbol?.toUpperCase())) {
-      return acc;
-    }
+    // Skip if no price found (better than assuming 1:1)
+    if (!price) return acc;
+
     const decimals = Number(transfer.tokenDecimal || 18);
-    return acc + (Number(transfer.value) / Math.pow(10, decimals));
+    const valueStr = transfer.value;
+    // Basic safety check for huge numbers
+    if (valueStr.length > 30) return acc;
+
+    const valueObj = Number(valueStr) / Math.pow(10, decimals);
+    return acc + (valueObj * price);
   }, 0);
 
-  // Note: This assumes ETH price approx $2500 for the ETH portion if we wanted USD
-  // For now, we'll just sum them as "units of value" but it's much safer than before
-  // A better approach in Phase 2 is using GeckoTerminal for real prices
-  const totalVolume = (ethVolume * 2500) + tokenVolume; // Approx $2500/ETH for rough estimate
+  const totalVolume = ethVolumeUSD + tokenVolumeUSD;
 
   // First transaction date
   const allTxs = [...transactions, ...tokenTransfers].sort(
@@ -392,11 +399,26 @@ export async function fetchWalletData(address: string): Promise<{
 
   console.log('✅ All API calls complete');
 
+  // NEW: Fetch real token prices via GeckoTerminal
+  // Collect unique token addresses from transfers (limit to top 30 most recent to satisfy API limits if any)
+  const uniqueTokenAddresses = Array.from(new Set(
+    tokenTransfers
+      .map(t => t.contractAddress?.toLowerCase())
+      .filter(addr => addr && addr.startsWith('0x'))
+  )).slice(0, 30);
+
+  // Also add WETH/ETH equivalent for pricing
+  if (!uniqueTokenAddresses.includes('0x4200000000000000000000000000000000000006')) {
+    uniqueTokenAddresses.push('0x4200000000000000000000000000000000000006');
+  }
+
+  const tokenPrices = await getTokenPrices(uniqueTokenAddresses as string[]);
+
   // Fetch ETH balance
   const ethBalance = await getBalance(address);
 
   // Calculate everything
-  const stats = calculateWalletStats(transactions, tokenTransfers, nftTransfers);
+  const stats = calculateWalletStats(transactions, tokenTransfers, nftTransfers, tokenPrices);
   const checklist = generateChecklist(transactions, tokenTransfers, nftTransfers);
 
   // NEW: Use 3-pillar scoring
@@ -407,9 +429,6 @@ export async function fetchWalletData(address: string): Promise<{
   // NEW: Dynamic percentile
   const percentile = getPercentileEstimate(baseScore);
   const recentTrades = parseRecentTrades(tokenTransfers, address);
-
-  console.log('🎉 Wallet data ready!');
-  console.log('📊 Summary:', { baseScore, percentile, txs: stats.totalTransactions });
 
   return {
     stats,
