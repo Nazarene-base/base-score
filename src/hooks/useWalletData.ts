@@ -66,6 +66,9 @@ const INITIAL_STATS: WalletStats = {
   basename: null,
   tokenCount: 0,
   hasDexActivity: false,
+  hasLendingActivity: false,
+  hasNftActivity: false,
+  ethBalance: 0,
 };
 
 export function useWalletData(): UseWalletDataResult {
@@ -152,7 +155,8 @@ export function useWalletData(): UseWalletDataResult {
         history.nftTransfers,
         {}, // No prices yet
         realTxCount,           // AUTHORITATIVE: From BaseScan history
-        authoritativeFirstTxDate // AUTHORITATIVE: From Dedicated Age
+        authoritativeFirstTxDate, // AUTHORITATIVE: From Dedicated Age
+        fastData.ethBalance    // NEW: For Level checks
       );
 
       // SINGLE SOURCE OF TRUTH: Override with authoritative values
@@ -199,7 +203,8 @@ export function useWalletData(): UseWalletDataResult {
         history.nftTransfers,
         prices,
         realTxCount,           // AUTHORITATIVE: From BaseScan history
-        authoritativeFirstTxDate // AUTHORITATIVE: From Dedicated Age
+        authoritativeFirstTxDate, // AUTHORITATIVE: From Dedicated Age
+        fastData.ethBalance    // NEW: For Level checks
       );
 
       // SINGLE SOURCE OF TRUTH: Override with authoritative values

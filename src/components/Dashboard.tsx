@@ -151,7 +151,10 @@ export function Dashboard() {
                 nftsMinted: 0,
                 bridgeTransactions: 0,
                 tokenCount: 0,
-                hasDexActivity: false
+                hasDexActivity: false,
+                hasLendingActivity: false,
+                hasNftActivity: false,
+                ethBalance: 0
               }}
               checklist={checklist}
               isLoading={isLoading}

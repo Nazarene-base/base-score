@@ -12,7 +12,10 @@ export interface WalletStats {
   basename?: string | null;
   tokenCount: number;
   hasDexActivity: boolean;
-  isApproximate?: boolean; // NEW: True if data is based on partial history (>5000 txs)
+  hasLendingActivity: boolean; // NEW: For Level 4 checks
+  hasNftActivity: boolean;     // NEW: For Level 3 checks
+  ethBalance: number;          // NEW: Fixes Level 1 bug
+  isApproximate?: boolean;
 }
 
 export interface Trade {

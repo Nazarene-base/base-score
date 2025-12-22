@@ -58,22 +58,24 @@ export function useCompareWallet(): CompareWalletResult {
 
             const prices = await getTokenPrices(uniqueTokenAddresses as string[]);
 
-            // Calculate stats
+            // REAL TRANSACTION COUNT: Use BaseScan history length (includes both sent AND received)
+            const realTxCount = history.transactions.length + history.tokenTransfers.length;
+
+            // Calculate stats with all authoritative values
             const calculatedStats = calculateWalletStats(
                 history.transactions,
                 history.tokenTransfers,
                 history.nftTransfers,
-                prices
+                prices,
+                realTxCount,           // AUTHORITATIVE: From BaseScan
+                fastData.firstTxDate,  // AUTHORITATIVE: From dedicated API
+                fastData.ethBalance    // NEW: For Level checks
             );
-
-            // REAL TRANSACTION COUNT: Use BaseScan history length (includes both sent AND received)
-            // Alchemy's txCount is the NONCE (outgoing only) - NOT what the user expects
-            const realTxCount = history.transactions.length + history.tokenTransfers.length;
 
             // Apply single source of truth values
             const finalStats: WalletStats = {
                 ...calculatedStats,
-                totalTransactions: realTxCount, // FIXED: From BaseScan (all txs)
+                totalTransactions: realTxCount,
                 firstTxDate: fastData.firstTxDate,
                 basename: fastData.basename,
                 isApproximate: history.isApproximate

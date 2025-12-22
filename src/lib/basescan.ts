@@ -213,9 +213,10 @@ export function calculateWalletStats(
   tokenTransfers: BaseScanTokenTransfer[],
   nftTransfers: BaseScanTokenTransfer[],
   tokenPrices: Record<string, number> = {},
-  // NEW: Accept authoritative values to prevent "0" defaults on fetch failure
+  // Authoritative values passed from caller
   authoritativeTxCount?: number,
-  authoritativeFirstTxDate?: Date | null
+  authoritativeFirstTxDate?: Date | null,
+  ethBalance: number = 0 // NEW: For Level checks
 ): WalletStats {
   console.log('📊 Calculating stats:', {
     txs: transactions.length,
@@ -292,7 +293,34 @@ export function calculateWalletStats(
     bridgeContracts.includes(tx.to?.toLowerCase() || '')
   ).length;
 
-  const stats = {
+  // DEX Activity Check
+  const dexContracts = TRACKED_PROTOCOLS
+    .filter(p => p.category === 'dex')
+    .flatMap(p => p.contracts.map(c => c.toLowerCase()));
+
+  const hasDexActivity = transactions.some(tx =>
+    dexContracts.includes(tx.to?.toLowerCase() || '')
+  );
+
+  // NEW: Lending Activity Check (for Level 4)
+  const lendingContracts = TRACKED_PROTOCOLS
+    .filter(p => p.category === 'lending')
+    .flatMap(p => p.contracts.map(c => c.toLowerCase()));
+
+  const hasLendingActivity = transactions.some(tx =>
+    lendingContracts.includes(tx.to?.toLowerCase() || '')
+  );
+
+  // NEW: NFT Activity Check (for Level 3)
+  const nftContracts = TRACKED_PROTOCOLS
+    .filter(p => p.category === 'nft')
+    .flatMap(p => p.contracts.map(c => c.toLowerCase()));
+
+  const hasNftActivity = nftTransfers.length > 0 || transactions.some(tx =>
+    nftContracts.includes(tx.to?.toLowerCase() || '')
+  );
+
+  const stats: WalletStats = {
     totalTransactions,
     uniqueProtocols: uniqueContracts.size,
     totalVolume: Math.round(totalVolume * 100) / 100,
@@ -302,12 +330,10 @@ export function calculateWalletStats(
     nftsMinted: nftTransfers.length,
     bridgeTransactions,
     tokenCount: new Set(tokenTransfers.map(t => t.contractAddress)).size,
-    hasDexActivity: transactions.some(tx => {
-      const dexContracts = TRACKED_PROTOCOLS
-        .filter(p => p.category === 'dex')
-        .flatMap(p => p.contracts.map(c => c.toLowerCase()));
-      return dexContracts.includes(tx.to?.toLowerCase() || '');
-    }),
+    hasDexActivity,
+    hasLendingActivity,
+    hasNftActivity,
+    ethBalance,
   };
 
   console.log('✅ Stats Calculated:', { totalTransactions, firstTxDate });

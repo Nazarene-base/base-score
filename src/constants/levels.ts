@@ -1,22 +1,47 @@
+import type { WalletStats } from '@/types';
+
 export type LevelId = 'citizen' | 'explorer' | 'culture' | 'liquidity' | 'native';
 
 export interface LevelRequirement {
     id: string;
     label: string;
     description: string;
-    check: (stats: any) => boolean; // Will type this properly later with WalletStats
+    check: (stats: WalletStats) => boolean; // Type-safe with WalletStats
 }
 
 export interface Level {
     id: LevelId;
     title: string;
-    badge: string; // Emoji or Icon name
+    badge: string;
     description: string;
     requirements: LevelRequirement[];
     reward: string;
 }
 
+/**
+ * Helper: Calculate wallet age in months from firstTxDate
+ */
+function getWalletAgeMonths(firstTxDate: Date | null): number {
+    if (!firstTxDate) return 0;
+    const now = new Date();
+    const diffMs = now.getTime() - firstTxDate.getTime();
+    const diffDays = diffMs / (1000 * 60 * 60 * 24);
+    return Math.floor(diffDays / 30);
+}
+
+/**
+ * LEVELS PROGRESSION SYSTEM
+ * 
+ * Level 1: Base Citizen - Establish presence
+ * Level 2: DeFi Explorer - Discover DeFi
+ * Level 3: Culture Creator - NFT engagement
+ * Level 4: Liquidity Agent - Advanced DeFi
+ * Level 5: Base Native - Power user status
+ */
 export const LEVELS: Level[] = [
+    // ============================================
+    // LEVEL 1: BASE CITIZEN
+    // ============================================
     {
         id: 'citizen',
         title: 'Base Citizen',
@@ -44,6 +69,10 @@ export const LEVELS: Level[] = [
             }
         ],
     },
+
+    // ============================================
+    // LEVEL 2: DEFI EXPLORER
+    // ============================================
     {
         id: 'explorer',
         title: 'DeFi Explorer',
@@ -65,5 +94,119 @@ export const LEVELS: Level[] = [
             },
         ],
     },
-    // ... more levels to come
+
+    // ============================================
+    // LEVEL 3: CULTURE CREATOR
+    // ============================================
+    {
+        id: 'culture',
+        title: 'Culture Creator',
+        badge: '🎨',
+        description: 'Engage with the NFT ecosystem.',
+        reward: 'Creator Badge',
+        requirements: [
+            {
+                id: 'nft_mint',
+                label: 'Mint an NFT',
+                description: 'Mint or collect an NFT on Base',
+                check: (stats) => stats.hasNftActivity || stats.nftsMinted > 0,
+            },
+            {
+                id: 'protocols_4',
+                label: 'Use 4+ Protocols',
+                description: 'Interact with multiple dApps',
+                check: (stats) => stats.uniqueProtocols >= 4,
+            },
+            {
+                id: 'days_7',
+                label: 'Active 7+ Days',
+                description: 'Show consistent engagement',
+                check: (stats) => stats.daysActive >= 7,
+            },
+        ],
+    },
+
+    // ============================================
+    // LEVEL 4: LIQUIDITY AGENT
+    // ============================================
+    {
+        id: 'liquidity',
+        title: 'Liquidity Agent',
+        badge: '💎',
+        description: 'Master advanced DeFi protocols.',
+        reward: 'Diamond Hands Badge',
+        requirements: [
+            {
+                id: 'lending',
+                label: 'Use Lending Protocol',
+                description: 'Supply or borrow on Aave or Compound',
+                check: (stats) => stats.hasLendingActivity,
+            },
+            {
+                id: 'volume_1k',
+                label: 'Trade $1,000+ Volume',
+                description: 'Demonstrate significant trading activity',
+                check: (stats) => stats.totalVolume >= 1000,
+            },
+            {
+                id: 'tx_50',
+                label: '50+ Transactions',
+                description: 'High activity on-chain',
+                check: (stats) => stats.totalTransactions >= 50,
+            },
+        ],
+    },
+
+    // ============================================
+    // LEVEL 5: BASE NATIVE
+    // ============================================
+    {
+        id: 'native',
+        title: 'Base Native',
+        badge: '🔵',
+        description: 'Achieve power user status.',
+        reward: 'OG Native Badge',
+        requirements: [
+            {
+                id: 'age_6m',
+                label: '6+ Months on Base',
+                description: 'Long-term commitment to the ecosystem',
+                check: (stats) => getWalletAgeMonths(stats.firstTxDate) >= 6,
+            },
+            {
+                id: 'tx_200',
+                label: '200+ Transactions',
+                description: 'Extremely active on-chain presence',
+                check: (stats) => stats.totalTransactions >= 200,
+            },
+            {
+                id: 'volume_10k',
+                label: '$10,000+ Volume',
+                description: 'Major value contribution',
+                check: (stats) => stats.totalVolume >= 10000,
+            },
+            {
+                id: 'protocols_6',
+                label: '6+ Protocols Used',
+                description: 'Broad ecosystem engagement',
+                check: (stats) => stats.uniqueProtocols >= 6,
+            },
+        ],
+    },
 ];
+
+/**
+ * Get total number of requirements across all levels
+ */
+export function getTotalRequirements(): number {
+    return LEVELS.reduce((sum, level) => sum + level.requirements.length, 0);
+}
+
+/**
+ * Get number of completed requirements for a wallet
+ */
+export function getCompletedRequirements(stats: WalletStats): number {
+    return LEVELS.reduce((sum, level) => {
+        return sum + level.requirements.filter(req => req.check(stats)).length;
+    }, 0);
+}
