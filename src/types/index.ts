@@ -16,6 +16,24 @@ export interface WalletStats {
   hasNftActivity: boolean;     // NEW: For Level 3 checks
   ethBalance: number;          // NEW: Fixes Level 1 bug
   isApproximate?: boolean;
+  // Farcaster data (optional - requires API key)
+  farcaster?: {
+    fid: number;
+    username: string;
+    displayName: string;
+    pfpUrl: string;
+    followerCount: number;
+    followingCount: number;
+    accountAge: number;
+    hasPowerBadge: boolean;
+    isActive: boolean;
+  } | null;
+  // Blue-chip NFT holdings
+  blueChipNFTs?: {
+    hasBlueChips: boolean;
+    collections: string[];
+    totalPoints: number;
+  } | null;
 }
 
 export interface Trade {

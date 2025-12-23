@@ -34,7 +34,10 @@ export interface ScoreBreakdown {
     total: number;
     basename: number;
     nftActivity: number;
-    // farcaster: number; // Future
+    farcaster: number;
+    farcasterConnected: number;
+    farcasterAge: number;
+    farcasterFollowers: number;
   };
   network: {
     total: number;
@@ -80,9 +83,11 @@ const DEFI_WEIGHTS = {
 };
 
 const CULTURE_WEIGHTS = {
-  BASENAME: 80,         // Owning a .base.eth name
-  NFT_ACTIVITY: 80,     // NFT minting/holding
-  // FARCASTER: 40,     // Future integration
+  BASENAME: 50,         // Owning a .base.eth name
+  NFT_ACTIVITY: 50,     // NFT minting/holding
+  FARCASTER_CONNECTED: 25, // Having a Farcaster account linked
+  FARCASTER_AGE: 25,    // 2 pts/month, max 24 pts
+  FARCASTER_FOLLOWERS: 50, // log10(followers) * 12.5, max 50 pts
 };
 
 const NETWORK_WEIGHTS = {
@@ -202,10 +207,32 @@ export function calculateBaseScore(stats: WalletStats, ethBalance: number = 0): 
 
   // NFT Activity
   const nftScore = stats.hasNftActivity
-    ? Math.min(CULTURE_WEIGHTS.NFT_ACTIVITY, 30 + (stats.nftsMinted * 5))
+    ? Math.min(CULTURE_WEIGHTS.NFT_ACTIVITY, 20 + (stats.nftsMinted * 3))
     : 0;
 
-  const cultureTotal = Math.floor(basenameScore + nftScore);
+  // Farcaster Integration
+  let farcasterConnectedScore = 0;
+  let farcasterAgeScore = 0;
+  let farcasterFollowersScore = 0;
+  let farcasterTotalScore = 0;
+
+  if (stats.farcaster) {
+    // Connected: 25 pts flat
+    farcasterConnectedScore = CULTURE_WEIGHTS.FARCASTER_CONNECTED;
+
+    // Account Age: 2 pts/month, max 25 pts
+    farcasterAgeScore = Math.min(CULTURE_WEIGHTS.FARCASTER_AGE, stats.farcaster.accountAge * 2);
+
+    // Followers: log10(followers) * 12.5, max 50 pts
+    // 10 followers = 12.5 pts, 100 = 25 pts, 1000 = 37.5 pts, 10000 = 50 pts
+    farcasterFollowersScore = stats.farcaster.followerCount > 0
+      ? Math.min(CULTURE_WEIGHTS.FARCASTER_FOLLOWERS, Math.log10(stats.farcaster.followerCount) * 12.5)
+      : 0;
+
+    farcasterTotalScore = farcasterConnectedScore + farcasterAgeScore + farcasterFollowersScore;
+  }
+
+  const cultureTotal = Math.floor(basenameScore + nftScore + farcasterTotalScore);
 
   // ==========================================
   // 4. NETWORK CONTRIBUTION (150 pts max)
@@ -286,6 +313,10 @@ export function calculateBaseScore(stats: WalletStats, ethBalance: number = 0): 
       total: Math.min(WEIGHTS.CULTURE, cultureTotal),
       basename: Math.floor(basenameScore),
       nftActivity: Math.floor(nftScore),
+      farcaster: Math.floor(farcasterTotalScore),
+      farcasterConnected: Math.floor(farcasterConnectedScore),
+      farcasterAge: Math.floor(farcasterAgeScore),
+      farcasterFollowers: Math.floor(farcasterFollowersScore),
     },
     network: {
       total: Math.min(WEIGHTS.NETWORK, networkTotal),

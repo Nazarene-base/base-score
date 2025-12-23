@@ -6,10 +6,11 @@ import {
   calculateWalletStats,
 } from '@/lib/basescan';
 import { getCdpWalletData } from '@/app/actions/cdp';
+import { getFarcasterData } from '@/app/actions/farcaster';
 import { mapCdpHistoryToBasescan, getEthBalanceFromCdp } from '@/lib/cdp-mapping';
 import { calculateBaseScore } from '@/utils/calculateScore';
 import { getPercentileEstimate } from '@/utils/getRankInfo';
-import { getTokenPrices } from '@/lib/price'; // Import direct if needed
+import { getTokenPrices } from '@/lib/price';
 
 import type { WalletStats, ChecklistItem, Trade, PnLData } from '@/types';
 import { generateChecklist } from '@/lib/basescan';
@@ -70,6 +71,7 @@ const INITIAL_STATS: WalletStats = {
   hasLendingActivity: false,
   hasNftActivity: false,
   ethBalance: 0,
+  farcaster: null,
 };
 
 export function useWalletData(): UseWalletDataResult {
@@ -312,13 +314,19 @@ export function useWalletData(): UseWalletDataResult {
         fastData.ethBalance    // NEW: For Level checks
       );
 
+      // Fetch Farcaster data (parallel with price fetch)
+      console.time('FarcasterFetch');
+      const farcasterData = await getFarcasterData(address);
+      console.timeEnd('FarcasterFetch');
+
       // SINGLE SOURCE OF TRUTH: Override with authoritative values
       const finalStats: WalletStats = {
         ...pricedStats,
         totalTransactions: realTxCount,       // FIXED: From BaseScan (all txs)
         firstTxDate: authoritativeFirstTxDate,    // FIXED: From dedicated API
         basename: fastData.basename,
-        isApproximate: history.isApproximate      // Flag if >5000 txs
+        isApproximate: history.isApproximate,      // Flag if >5000 txs
+        farcaster: farcasterData,                   // NEW: Farcaster profile data
       };
 
       // Final Update
