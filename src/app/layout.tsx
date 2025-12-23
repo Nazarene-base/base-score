@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Providers } from '@/components/Providers';
 import BaseReady from '@/components/BaseReady';
+import '@coinbase/onchainkit/styles.css';
 import './globals.css';
 
 export const metadata: Metadata = {

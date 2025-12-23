@@ -9,6 +9,7 @@ import { BootSequence } from './BootSequence';
 import ScoreHero from './ScoreCard';
 import { RefreshIcon } from './Icons';
 import { BottomNav } from './BottomNav';
+import { UserIdentity } from './UserIdentity';
 
 type TabId = 'score' | 'pnl' | 'compare' | 'profile';
 
@@ -81,7 +82,7 @@ export function Dashboard() {
           </div>
           <span className="font-space-grotesk font-bold tracking-tight text-sm">Base Score</span>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <button
             onClick={refetch}
             className="p-2 rounded-lg text-gray-500 hover:text-white hover:bg-white/5 transition-all active:scale-90"
@@ -90,9 +91,9 @@ export function Dashboard() {
           </button>
           <button
             onClick={() => disconnect()}
-            className="text-[10px] font-jetbrains-mono text-gray-500 hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-white/5"
+            className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-white/5"
           >
-            {shortAddress} <span className="text-accent-purple ml-1">↗</span>
+            <UserIdentity />
           </button>
         </div>
       </header>
