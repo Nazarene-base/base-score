@@ -75,14 +75,18 @@ export function CompareTab({ myStats, myScore, myPercentile }: CompareTabProps) 
                     <div className="bg-base-blue/10 rounded-xl p-4 text-center border border-base-blue/20">
                         <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">You</p>
                         <p className="text-2xl font-bold text-white">{myScore}</p>
-                        <p className="text-xs text-gray-500">Top {myPercentile}%</p>
+                        <p className="text-xs text-gray-500">
+                            {myPercentile >= 10 ? `Ahead of ${myPercentile}%` : 'Getting started'}
+                        </p>
                     </div>
                     <div className={`rounded-xl p-4 text-center border ${theirStats ? 'bg-purple-500/10 border-purple-500/20' : 'bg-bg-secondary border-white/5'}`}>
                         <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">
                             {theirStats ? 'Them' : 'Search to compare'}
                         </p>
                         <p className="text-2xl font-bold text-white">{theirStats ? theirScore : '—'}</p>
-                        <p className="text-xs text-gray-500">{theirStats ? `Top ${theirPercentile}%` : ''}</p>
+                        <p className="text-xs text-gray-500">
+                            {theirStats ? (theirPercentile >= 10 ? `Ahead of ${theirPercentile}%` : 'Getting started') : ''}
+                        </p>
                     </div>
 
                     {/* Stat Rows */}

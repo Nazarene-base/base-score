@@ -24,6 +24,8 @@ export interface LevelRequirement {
     label: string;
     description: string;
     check: (stats: WalletStats) => boolean;
+    /** URL to complete this action (for uncompleted requirements) */
+    actionUrl?: string;
 }
 
 export interface Level {
@@ -71,6 +73,7 @@ export const LEVELS: Level[] = [
                 label: 'Bridge to Base',
                 description: 'Bridge ETH or tokens to Base Mainnet',
                 check: (stats) => stats.ethBalance > 0 || stats.totalVolume > 0,
+                actionUrl: 'https://bridge.base.org',
             },
             {
                 id: 'first_tx',
@@ -83,6 +86,7 @@ export const LEVELS: Level[] = [
                 label: 'Claim Basename',
                 description: 'Register a .base.eth name',
                 check: (stats) => !!stats.basename,
+                actionUrl: 'https://www.base.org/names',
             }
         ],
     },
@@ -102,6 +106,7 @@ export const LEVELS: Level[] = [
                 label: 'Execute a Swap',
                 description: 'Swap tokens on Uniswap or Aerodrome',
                 check: (stats) => stats.hasDexActivity,
+                actionUrl: 'https://app.uniswap.org/swap?chain=base',
             },
             {
                 id: 'hold_3',
@@ -127,6 +132,7 @@ export const LEVELS: Level[] = [
                 label: 'Mint an NFT',
                 description: 'Mint or collect an NFT on Base',
                 check: (stats) => stats.hasNftActivity || stats.nftsMinted > 0,
+                actionUrl: 'https://zora.co/explore',
             },
             {
                 id: 'protocols_4',
@@ -158,6 +164,7 @@ export const LEVELS: Level[] = [
                 label: 'Use Lending Protocol',
                 description: 'Supply or borrow on Aave or Compound',
                 check: (stats) => stats.hasLendingActivity,
+                actionUrl: 'https://app.aave.com/?marketName=proto_base_v3',
             },
             {
                 id: 'volume_1k',

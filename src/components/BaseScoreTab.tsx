@@ -132,7 +132,7 @@ export function BaseScoreTab({
       </div>
 
       {/* Level Requirements Checklist */}
-      <div className="space-y-4 animate-fade-in" style={{ animationDelay: '0.2s' }}>
+      <div data-section="requirements" className="space-y-4 animate-fade-in" style={{ animationDelay: '0.2s' }}>
         <div className="flex items-center justify-between px-1">
           <h3 className="font-space-grotesk font-bold text-white">Requirements</h3>
           <span className="text-[10px] text-gray-500 font-jetbrains-mono">
@@ -143,9 +143,18 @@ export function BaseScoreTab({
         <div className="space-y-2">
           {currentLevel.requirements.map((req, index) => {
             const isMet = req.check(stats);
+            const isClickable = !isMet && req.actionUrl;
+
+            const handleClick = () => {
+              if (isClickable && req.actionUrl) {
+                window.open(req.actionUrl, '_blank');
+              }
+            };
+
             return (
               <div
                 key={req.id}
+                onClick={handleClick}
                 className={`
                   glass-card flex items-center gap-4 p-4 rounded-xl
                   transition-all duration-500 ease-out
@@ -154,6 +163,7 @@ export function BaseScoreTab({
                     ? 'border border-success/20 bg-success/5'
                     : 'border border-white/[0.05] hover:border-white/10'
                   }
+                  ${isClickable ? 'cursor-pointer hover:bg-white/[0.03] active:scale-[0.99]' : ''}
                 `}
                 style={{ animationDelay: `${0.3 + index * 0.1}s` }}
               >
@@ -179,12 +189,18 @@ export function BaseScoreTab({
                   <p className="text-[11px] text-gray-500">{req.description}</p>
                 </div>
 
-                {/* Status Badge */}
-                {isMet && (
+                {/* Status Badge or Action Arrow */}
+                {isMet ? (
                   <span className="text-[9px] font-jetbrains-mono uppercase text-success tracking-widest bg-success/10 px-2 py-1 rounded-full">
                     Done
                   </span>
-                )}
+                ) : isClickable ? (
+                  <span className="text-gray-500 group-hover:text-white transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                      <path fillRule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clipRule="evenodd" />
+                    </svg>
+                  </span>
+                ) : null}
               </div>
             );
           })}

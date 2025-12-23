@@ -189,11 +189,21 @@ export function useWalletData(): UseWalletDataResult {
             const sortedTxs = [...mappedTransactions].sort((a, b) => Number(a.timeStamp) - Number(b.timeStamp));
             const estimatedFirstTxDate = sortedTxs.length > 0 ? new Date(Number(sortedTxs[0].timeStamp) * 1000) : null;
 
+            // Fetch basename separately since CDP doesn't provide it
+            let basename: string | null = null;
+            try {
+              const { getBasename } = await import('@/lib/basename');
+              basename = await getBasename(address);
+              console.log('📛 Basename resolved:', basename || 'none');
+            } catch (basenameErr) {
+              console.warn('⚠️ Basename fetch failed:', basenameErr);
+            }
+
             // Construct standardized objects
             fastData = {
               ethBalance: cdpEthBalance,
               firstTxDate: estimatedFirstTxDate,
-              basename: null // TODO: Add dedicated Basename fetch if needed
+              basename: basename // Now properly fetched
             };
 
             history = {
@@ -204,7 +214,7 @@ export function useWalletData(): UseWalletDataResult {
             };
 
             usedCdp = true;
-            console.log(`📊 CDP: ${mappedTransactions.length} txs, ${cdpEthBalance.toFixed(4)} ETH`);
+            console.log(`📊 CDP: ${mappedTransactions.length} txs, ${cdpEthBalance.toFixed(4)} ETH, basename: ${basename || 'none'}`);
           }
         }
       } catch (cdpErr) {

@@ -15,7 +15,7 @@ const CDP_API_HOST = 'api.developer.coinbase.com';
 
 /**
  * Generate a JWT for CDP API authentication.
- * CDP uses ES256 with a specific format.
+ * CDP uses EdDSA (Ed25519) for new API keys.
  */
 async function generateJwt(requestMethod: string, requestPath: string): Promise<string> {
     if (!CDP_API_KEY_NAME || !CDP_API_KEY_PRIVATE_KEY) {
@@ -26,26 +26,49 @@ async function generateJwt(requestMethod: string, requestPath: string): Promise<
     const uri = `${requestMethod} ${CDP_API_HOST}${requestPath}`;
 
     // Format the private key
-    // CDP provides keys in EC format. Try multiple formats for compatibility.
+    // CDP provides Ed25519 keys as raw base64 (64 bytes: 32-byte seed + 32-byte public key)
     let privateKey: CryptoKey;
 
     try {
-        // First, try PKCS8 format (standard)
-        let keyString = CDP_API_KEY_PRIVATE_KEY;
+        const keyString = CDP_API_KEY_PRIVATE_KEY;
 
-        // If it doesn't have PEM headers, try to add them
-        if (!keyString.includes('-----BEGIN')) {
-            // Try EC PRIVATE KEY format first (most common for CDP)
-            keyString = `-----BEGIN EC PRIVATE KEY-----\n${CDP_API_KEY_PRIVATE_KEY}\n-----END EC PRIVATE KEY-----`;
-            try {
-                privateKey = await jose.importPKCS8(keyString, 'ES256');
-            } catch {
-                // If that fails, try PRIVATE KEY format
-                keyString = `-----BEGIN PRIVATE KEY-----\n${CDP_API_KEY_PRIVATE_KEY}\n-----END PRIVATE KEY-----`;
-                privateKey = await jose.importPKCS8(keyString, 'ES256');
-            }
+        // Check if it's already PEM formatted
+        if (keyString.includes('-----BEGIN')) {
+            privateKey = await jose.importPKCS8(keyString, 'EdDSA');
         } else {
-            privateKey = await jose.importPKCS8(keyString, 'ES256');
+            // CDP provides raw base64 key - decode and create JWK
+            const keyBytes = Buffer.from(keyString, 'base64');
+
+            log(`Key bytes length: ${keyBytes.length}`);
+
+            if (keyBytes.length === 64) {
+                // Ed25519 key: first 32 bytes = private seed, last 32 bytes = public key
+                const privateBytes = keyBytes.slice(0, 32);
+                const publicBytes = keyBytes.slice(32, 64);
+
+                // Create an OKP (Octet Key Pair) JWK for Ed25519
+                const jwk = {
+                    kty: 'OKP' as const,
+                    crv: 'Ed25519',
+                    d: Buffer.from(privateBytes).toString('base64url'),
+                    x: Buffer.from(publicBytes).toString('base64url'),
+                };
+
+                privateKey = await jose.importJWK(jwk, 'EdDSA') as CryptoKey;
+                log('Successfully imported Ed25519 key from 64-byte format');
+            } else if (keyBytes.length === 32) {
+                // Just the private seed - need to derive public key
+                // For now, try as raw seed
+                const jwk = {
+                    kty: 'OKP' as const,
+                    crv: 'Ed25519',
+                    d: Buffer.from(keyBytes).toString('base64url'),
+                };
+                privateKey = await jose.importJWK(jwk, 'EdDSA') as CryptoKey;
+                log('Successfully imported Ed25519 key from 32-byte seed');
+            } else {
+                throw new Error(`Unexpected key length: ${keyBytes.length} bytes (expected 32 or 64)`);
+            }
         }
     } catch (keyError) {
         logError('Failed to import private key:', keyError);
@@ -58,7 +81,7 @@ async function generateJwt(requestMethod: string, requestPath: string): Promise<
         uri,
     })
         .setProtectedHeader({
-            alg: 'ES256',
+            alg: 'EdDSA',
             kid: CDP_API_KEY_NAME,
             nonce: crypto.randomUUID(),
             typ: 'JWT',

@@ -177,22 +177,6 @@ export function Dashboard() {
             />
           )}
         </div>
-
-        {/* Share Button */}
-        <div className="pt-6 flex justify-center animate-fade-in" style={{ animationDelay: '0.3s' }}>
-          <button
-            onClick={() => {
-              const shareText = encodeURIComponent(`My Base Score: ${baseScore}/100 🔵\n\nCheck your on-chain reputation on Base.`);
-              const shareUrl = encodeURIComponent(`https://base-score-neon.vercel.app`);
-              window.open(`https://warpcast.com/~/compose?text=${shareText}&embeds[]=${shareUrl}`, '_blank');
-            }}
-            className="group glass-card px-6 py-3 rounded-full border border-white/10 hover:border-accent-purple/30 transition-all duration-300 shine-effect"
-          >
-            <span className="text-sm font-medium text-gray-400 group-hover:text-white transition-colors">
-              Share Your Score
-            </span>
-          </button>
-        </div>
       </main>
 
       {/* Bottom Navigation */}

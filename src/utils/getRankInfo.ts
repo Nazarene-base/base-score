@@ -1,11 +1,11 @@
 /**
- * BASE SCORE RANK SYSTEM
+ * BASE SCORE TIER SYSTEM (0-1000)
  * 
- * Ranks based on total score (0-1000):
+ * Tiers designed for psychological motivation:
  * - Newcomer (0-200): New to Base, getting started
  * - Builder (201-500): Active participant, building reputation
  * - Native (501-800): Established Base user with strong reputation
- * - Governor (801-1000): Elite tier, top 1% of Base users
+ * - Governor (801-1000): Elite tier, top 3% of Base users
  */
 
 export type RankTier = 'Newcomer' | 'Builder' | 'Native' | 'Governor';
@@ -27,9 +27,9 @@ const RANK_TIERS: Record<RankTier, RankInfo> = {
     tier: 'Newcomer',
     label: 'Newcomer',
     description: 'New to Base, getting started',
-    color: '#64748b', // slate
-    gradient: 'from-slate-400 to-slate-600',
-    bgColor: 'bg-slate-500/10',
+    color: '#6b7280', // gray
+    gradient: 'from-gray-400 to-gray-600',
+    bgColor: 'bg-gray-500/10',
     minScore: 0,
     maxScore: 200,
     emoji: '🌱'
@@ -59,9 +59,9 @@ const RANK_TIERS: Record<RankTier, RankInfo> = {
   Governor: {
     tier: 'Governor',
     label: 'Governor',
-    description: 'Elite tier, top 1% of Base users',
+    description: 'Elite tier, top 3% of Base users',
     color: '#f59e0b', // amber/gold
-    gradient: 'from-amber-400 to-amber-600',
+    gradient: 'from-amber-400 to-yellow-500',
     bgColor: 'bg-amber-500/10',
     minScore: 801,
     maxScore: 1000,
@@ -70,7 +70,7 @@ const RANK_TIERS: Record<RankTier, RankInfo> = {
 };
 
 /**
- * Get rank info based on score
+ * Get rank info based on score (0-1000)
  */
 export function getRankInfo(score: number): RankInfo {
   if (score <= 200) return RANK_TIERS.Newcomer;
@@ -119,67 +119,51 @@ export function getPointsToNextRank(score: number): number {
  * Get all rank tiers (for UI display)
  */
 export function getAllRanks(): RankInfo[] {
-  return [
-    RANK_TIERS.Newcomer,
-    RANK_TIERS.Builder,
-    RANK_TIERS.Native,
-    RANK_TIERS.Governor
-  ];
+  return Object.values(RANK_TIERS);
 }
 
 /**
- * Check if score qualifies for a specific rank
+ * Format percentile for display
  */
-export function hasRank(score: number, tier: RankTier): boolean {
-  const rank = RANK_TIERS[tier];
-  return score >= rank.minScore && score <= rank.maxScore;
+export function formatPercentile(percentile: number): string {
+  if (percentile >= 99) return 'Top 1%';
+  if (percentile >= 95) return `Top ${100 - percentile}%`;
+  return `Top ${Math.round(100 - percentile)}%`;
 }
 
 /**
- * Get percentile estimate based on score
- * This is a rough approximation - in production you'd calculate this from actual user distribution
+ * Estimate percentile from score (0-1000 scale)
+ * Based on expected distribution:
+ * - Newcomer (0-200): ~40% of users
+ * - Builder (201-500): ~35% of users
+ * - Native (501-800): ~20% of users
+ * - Governor (801-1000): ~5% of users
  */
 export function getPercentileEstimate(score: number): number {
-  // Rough distribution assumptions:
-  // Newcomer (0-200): Bottom 40%
-  // Builder (201-500): 40-80% (middle 40%)
-  // Native (501-800): 80-99% (top 19%)
-  // Governor (801-1000): Top 1%
-
   if (score <= 200) {
-    // Linear interpolation in bottom 40%
-    return Math.round((score / 200) * 40);
+    // Newcomer tier: 0-40th percentile
+    return Math.floor((score / 200) * 40);
   } else if (score <= 500) {
-    // Linear interpolation in middle 40% (40-80%)
-    const progress = (score - 201) / 299;
-    return Math.round(40 + (progress * 40));
+    // Builder tier: 40-75th percentile
+    return Math.floor(40 + ((score - 200) / 300) * 35);
   } else if (score <= 800) {
-    // Linear interpolation in top 19% (80-99%)
-    const progress = (score - 501) / 299;
-    return Math.round(80 + (progress * 19));
+    // Native tier: 75-95th percentile
+    return Math.floor(75 + ((score - 500) / 300) * 20);
   } else {
-    // Top 1% (99-100%)
-    const progress = (score - 801) / 199;
-    return Math.round(99 + progress);
+    // Governor tier: 95-100th percentile
+    return Math.floor(95 + ((score - 800) / 200) * 5);
   }
 }
 
 /**
- * Format percentile for display (e.g., "Top 5.2%")
+ * Get percentile message for display
  */
-export function formatPercentile(score: number): string {
+export function getPercentileMessage(score: number): string {
   const percentile = getPercentileEstimate(score);
-  const topPercentile = 100 - percentile;
 
-  if (score <= 200 || topPercentile >= 99) {
-    return 'Newcomer'; // Better than "Top 100%"
-  }
-
-  if (topPercentile <= 1) {
-    return 'Top 1%';
-  } else if (topPercentile <= 5) {
-    return `Top ${topPercentile.toFixed(1)}%`;
-  } else {
-    return `Top ${Math.round(topPercentile)}%`;
-  }
+  if (percentile >= 95) return "Top 5% — Elite status 🏆";
+  if (percentile >= 75) return `Top ${100 - percentile}% — Strong reputation`;
+  if (percentile >= 40) return `Ahead of ${percentile}% of Base wallets`;
+  if (percentile >= 20) return "Building momentum...";
+  return "Just getting started — keep building!";
 }

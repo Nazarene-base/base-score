@@ -167,22 +167,39 @@ export const TRACKED_PROTOCOLS: Protocol[] = [
 ];
 
 
-// Score breakdown interface for 3-pillar system
+// Score breakdown interface for 5-category weighted system (0-1000)
 export interface ScoreBreakdown {
   total: number;
-  citizen: {
+  ogStatus: {
     total: number;
     walletAge: number;
-    transactionCount: number;
+    daysActive: number;
+    activityStreak: number;
   };
-  whale: {
+  defiMastery: {
     total: number;
-    tradingVolume: number;
-    ethBalance: number;
+    timeWeightedVolume: number;
+    dexActivity: number;
+    lendingActivity: number;
+    bridgeActivity: number;
   };
-  explorer: {
+  culture: {
     total: number;
-    protocolDiversity: number;
-    identity: number;
+    basename: number;
+    nftActivity: number;
+  };
+  network: {
+    total: number;
+    gasSpent: number;
+  };
+  diversity: {
+    total: number;
+    uniqueProtocols: number;
+    crossCategory: number;
+  };
+  penalties: {
+    total: number;
+    freshWhalePenalty: number;
+    lowDiversityPenalty: number;
   };
 }

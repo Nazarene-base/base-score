@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { formatPercentile } from '@/utils/getRankInfo';
+import { formatPercentile, getRankInfo, getPercentileEstimate, getPercentileMessage } from '@/utils/getRankInfo';
 import { Skeleton } from './Skeleton';
 
 interface ScoreHeroProps {
@@ -92,7 +92,7 @@ export default function ScoreHero({ score, percentile, isLoading }: ScoreHeroPro
 
         {/* Subtitle */}
         <p className="text-sm text-gray-500 font-medium mb-8">
-          of 100 possible points
+          of 1000 possible points
         </p>
 
         {/* Stats Row */}
@@ -101,20 +101,61 @@ export default function ScoreHero({ score, percentile, isLoading }: ScoreHeroPro
           <div className="flex-1 glass-card rounded-2xl p-4 text-center shine-effect">
             <p className="text-[9px] font-jetbrains-mono text-gray-500 uppercase tracking-widest mb-2">Percentile</p>
             <p className="text-2xl font-space-grotesk font-bold gradient-text">
-              {formatPercentile(score)}
+              {formatPercentile(getPercentileEstimate(score))}
             </p>
           </div>
 
           {/* Divider */}
           <div className="w-[1px] h-12 bg-gradient-to-b from-transparent via-white/10 to-transparent mx-2" />
 
-          {/* Status Card */}
+          {/* Status Card with Tier Badge */}
           <div className="flex-1 glass-card rounded-2xl p-4 text-center shine-effect">
-            <p className="text-[9px] font-jetbrains-mono text-gray-500 uppercase tracking-widest mb-2">Status</p>
-            <p className={`text-2xl font-space-grotesk font-bold ${isVerified ? 'gradient-text' : 'text-gray-500'}`}>
-              {isVerified ? 'Active' : 'New'}
+            <p className="text-[9px] font-jetbrains-mono text-gray-500 uppercase tracking-widest mb-2">Rank</p>
+            <p className={`text-xl font-space-grotesk font-bold flex items-center justify-center gap-1.5 ${isVerified ? 'gradient-text' : 'text-gray-400'}`}>
+              <span className="text-2xl">{getRankInfo(score).emoji}</span>
+              {getRankInfo(score).tier}
             </p>
           </div>
+        </div>
+
+        {/* FOMO Percentile Message */}
+        <p className="text-center text-sm text-gray-400 mt-6 font-medium">
+          {score > 0 ? (
+            <>{getPercentileMessage(score)}</>
+          ) : (
+            <>Connect your wallet to see your score</>
+          )}
+        </p>
+
+        {/* Action Buttons */}
+        <div className="flex gap-3 mt-6 w-full max-w-xs">
+          {/* Share Button */}
+          <button
+            onClick={() => {
+              const shareText = encodeURIComponent(`My Base Score: ${score}/1000 🔵\n\nCheck your on-chain reputation on Base.`);
+              const shareUrl = encodeURIComponent(`https://base-score-neon.vercel.app`);
+              window.open(`https://warpcast.com/~/compose?text=${shareText}&embeds[]=${shareUrl}`, '_blank');
+            }}
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-accent-purple to-accent-pink text-white font-semibold text-sm shadow-lg shadow-accent-purple/25 hover:shadow-accent-purple/40 transition-all active:scale-[0.98]"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+              <path d="M13 4.5a2.5 2.5 0 11.702 1.737L6.97 9.604a2.518 2.518 0 010 .792l6.733 3.367a2.5 2.5 0 11-.671 1.341l-6.733-3.367a2.5 2.5 0 110-3.475l6.733-3.366A2.52 2.52 0 0113 4.5z" />
+            </svg>
+            Share Score
+          </button>
+
+          {/* Boost Button - scrolls to requirements */}
+          <button
+            onClick={() => {
+              document.querySelector('[data-section="requirements"]')?.scrollIntoView({ behavior: 'smooth' });
+            }}
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl glass-card border border-white/10 text-white font-semibold text-sm hover:bg-white/5 transition-all active:scale-[0.98]"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+              <path fillRule="evenodd" d="M10 17a.75.75 0 01-.75-.75V5.612L5.29 9.77a.75.75 0 01-1.08-1.04l5.25-5.5a.75.75 0 011.08 0l5.25 5.5a.75.75 0 11-1.08 1.04l-3.96-4.158V16.25A.75.75 0 0110 17z" clipRule="evenodd" />
+            </svg>
+            Boost Score
+          </button>
         </div>
       </div>
 

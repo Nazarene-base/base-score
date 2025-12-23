@@ -39,13 +39,13 @@ export function BottomNav({ activeTab, visible, onChange }: BottomNavProps) {
     return (
         <div className="fixed bottom-0 left-0 right-0 z-50 px-6 pb-[calc(16px+env(safe-area-inset-bottom))] pt-3 pointer-events-none">
             <div className="max-w-sm mx-auto pointer-events-auto">
-                {/* Floating Island Container */}
+                {/* Floating Island Container - Compact for Mobile */}
                 <div className="
                     flex justify-around items-center 
                     glass-card rounded-full
-                    px-4 py-3
+                    px-3 py-2
                     border border-white/[0.08]
-                    shadow-[0_20px_50px_-15px_rgba(0,0,0,0.5)]
+                    shadow-[0_16px_40px_-12px_rgba(0,0,0,0.5)]
                 ">
                     {tabs.map((tab) => {
                         const isActive = activeTab === tab.id;
@@ -65,11 +65,11 @@ export function BottomNav({ activeTab, visible, onChange }: BottomNavProps) {
                                     }
                                 `}
                             >
-                                {/* Active Background Pill */}
+                                {/* Active Background Pill - Base Blue */}
                                 {isActive && (
                                     <div className="
                                         absolute inset-0 rounded-full
-                                        bg-gradient-to-r from-accent-purple/30 to-accent-pink/20
+                                        bg-gradient-to-r from-base-blue/30 to-accent-purple/20
                                         animate-fade-in
                                     " />
                                 )}
@@ -82,13 +82,13 @@ export function BottomNav({ activeTab, visible, onChange }: BottomNavProps) {
                                     <Icon className="w-6 h-6" />
                                 </div>
 
-                                {/* Label */}
+                                {/* Label - Always Visible */}
                                 <span className={`
                                     relative z-10 text-[10px] font-medium tracking-wide
                                     transition-all duration-300
                                     ${isActive
-                                        ? 'opacity-100 translate-y-0'
-                                        : 'opacity-0 -translate-y-1 absolute'
+                                        ? 'opacity-100 text-white'
+                                        : 'opacity-60 text-gray-400'
                                     }
                                 `}>
                                     {tab.label}

@@ -8,11 +8,11 @@
    ============================================ */
 
 :root {
-  /* Primary Brand Gradient */
-  --gradient-hero: linear-gradient(135deg, #0052FF 0%, #7B61FF 50%, #FF61DC 100%);
-  --gradient-card: linear-gradient(135deg, rgba(123, 97, 255, 0.1) 0%, rgba(0, 82, 255, 0.05) 100%);
+  /* Primary Brand Gradient - Base Blue Emphasis */
+  --gradient-hero: linear-gradient(135deg, #0052FF 0%, #0066FF 40%, #7B61FF 100%);
+  --gradient-card: linear-gradient(135deg, rgba(0, 82, 255, 0.1) 0%, rgba(123, 97, 255, 0.05) 100%);
 
-  /* Core Colors */
+  /* Core Colors - Base Blue Primary */
   --base-blue: #0052FF;
   --base-blue-bright: #3B82F6;
   --accent-purple: #7B61FF;
