@@ -5,6 +5,8 @@ import {
   fetchHistoryData,
   calculateWalletStats,
 } from '@/lib/basescan';
+import { getCdpWalletData } from '@/app/actions/cdp';
+import { mapCdpHistoryToBasescan, getEthBalanceFromCdp } from '@/lib/cdp-mapping';
 import { calculateBaseScore } from '@/utils/calculateScore';
 import { getPercentileEstimate } from '@/utils/getRankInfo';
 import { getTokenPrices } from '@/lib/price'; // Import direct if needed
@@ -151,23 +153,84 @@ export function useWalletData(): UseWalletDataResult {
     setError(null);
 
     try {
-      // STEP 1: FAST (Alchemy)
-      // Immediate "Alive" check - Balances & Tx Count
-      console.time('FastFetch');
-      const fastData = await fetchFastData(address);
-      console.timeEnd('FastFetch');
+      let fastData: any = null;
+      let history: any = null;
+      let usedCdp = false;
 
-      // FIX C-1: Check if this fetch is still current
-      if (!isCurrent()) {
-        console.log('⚠️ Fetch aborted - wallet changed');
-        return;
+      // STEP 0.5: Try CDP Data Integration (Option B)
+      try {
+        console.time('CDP Fetch');
+        const cdpResult = await getCdpWalletData(address);
+        console.timeEnd('CDP Fetch');
+
+        if (cdpResult.success && cdpResult.data) {
+          console.log('✅ CDP Data received successfully');
+
+          // Parse Balances - handle nested data structure
+          const cdpBalancesRaw = cdpResult.data.balances;
+          const cdpBalancesData = Array.isArray(cdpBalancesRaw)
+            ? cdpBalancesRaw
+            : (cdpBalancesRaw?.data || cdpBalancesRaw?.balances || []);
+          const cdpEthBalance = getEthBalanceFromCdp(cdpBalancesData);
+
+          // Parse History - handle nested data structure
+          const cdpHistoryRaw = cdpResult.data.history;
+          const rawHistoryList = Array.isArray(cdpHistoryRaw)
+            ? cdpHistoryRaw
+            : (cdpHistoryRaw?.data || cdpHistoryRaw?.transactions || []);
+          const mappedTransactions = mapCdpHistoryToBasescan(rawHistoryList);
+
+          // VALIDATION: Only use CDP if we got meaningful data
+          // If CDP returns empty history, fall back to BaseScan which might have more data
+          if (mappedTransactions.length === 0 && cdpEthBalance === 0) {
+            console.warn('⚠️ CDP returned empty data, falling back to BaseScan');
+          } else {
+            // Sort for firstTxDate
+            const sortedTxs = [...mappedTransactions].sort((a, b) => Number(a.timeStamp) - Number(b.timeStamp));
+            const estimatedFirstTxDate = sortedTxs.length > 0 ? new Date(Number(sortedTxs[0].timeStamp) * 1000) : null;
+
+            // Construct standardized objects
+            fastData = {
+              ethBalance: cdpEthBalance,
+              firstTxDate: estimatedFirstTxDate,
+              basename: null // TODO: Add dedicated Basename fetch if needed
+            };
+
+            history = {
+              transactions: mappedTransactions,
+              tokenTransfers: [], // CDP unified history to be split in future
+              nftTransfers: [],  // CDP unified history to be split in future
+              isApproximate: false
+            };
+
+            usedCdp = true;
+            console.log(`📊 CDP: ${mappedTransactions.length} txs, ${cdpEthBalance.toFixed(4)} ETH`);
+          }
+        }
+      } catch (cdpErr) {
+        console.warn('⚠️ CDP Fetch failed, falling back to BaseScan:', cdpErr);
+        usedCdp = false;
       }
 
-      setEthBalance(fastData.ethBalance);
+      // Fallback Strategy: If CDP failed or returned no data, use original Alchemy/BaseScan
+      if (!usedCdp) {
+        // STEP 1: FAST (Alchemy)
+        console.time('FastFetch');
+        fastData = await fetchFastData(address);
+        console.timeEnd('FastFetch');
 
-      console.time('HistoryFetch');
-      const history = await fetchHistoryData(address);
-      console.timeEnd('HistoryFetch');
+        // FIX C-1: Check if this fetch is still current
+        if (!isCurrent()) return;
+
+        console.time('HistoryFetch');
+        history = await fetchHistoryData(address);
+        console.timeEnd('HistoryFetch');
+      }
+
+      // Shared Logic for Step 2 (Stats calculation)
+
+
+      setEthBalance(fastData.ethBalance);
 
       // FIX C-1: Check if this fetch is still current
       if (!isCurrent()) {
@@ -210,8 +273,8 @@ export function useWalletData(): UseWalletDataResult {
       // Collect unique tokens from history
       const uniqueTokenAddresses = Array.from(new Set(
         history.tokenTransfers
-          .map(t => t.contractAddress?.toLowerCase())
-          .filter(addr => addr && addr.startsWith('0x'))
+          .map((t: any) => t.contractAddress?.toLowerCase())
+          .filter((addr: string | undefined) => addr && addr.startsWith('0x'))
       )).slice(0, 30);
 
       // Ensure WETH
