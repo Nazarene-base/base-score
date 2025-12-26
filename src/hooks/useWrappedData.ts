@@ -1,7 +1,7 @@
-// useWrappedData - Fetches and computes all wrapped metrics for a wallet
-// Supports both connected wallet and manual address input
-// Uses CDP as primary data source, falls back to Basescan if CDP fails
-// Features persistent caching via Vercel KV with memory fallback
+// Only log in development (FIX M-5)
+const isDev = process.env.NODE_ENV === 'development';
+const log = (...args: unknown[]) => isDev && console.log('[Wrapped]', ...args);
+const logWarn = (...args: unknown[]) => isDev && console.warn('[Wrapped]', ...args);
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAccount } from 'wagmi';
@@ -66,15 +66,16 @@ export function useWrappedData(): UseWrappedDataResult {
         const addressLower = effectiveAddress.toLowerCase();
 
         // Check persistent cache first (Vercel KV or memory)
+        // FIX H-2: Check isCurrent() before using cached data
         try {
             const cached = await getCachedWrappedData(addressLower);
-            if (cached) {
-                console.log('✅ Using cached wrapped data');
+            if (cached && isCurrent()) {
+                log('Using cached wrapped data');
                 setData(cached);
                 return;
             }
         } catch (cacheError) {
-            console.warn('⚠️ Cache check failed:', cacheError);
+            logWarn('Cache check failed:', cacheError);
         }
 
         setIsLoading(true);
@@ -90,10 +91,11 @@ export function useWrappedData(): UseWrappedDataResult {
 
             // Try CDP first (primary)
             try {
-                console.log('📡 Trying CDP as primary data source...');
+                log('Trying CDP as primary data source...');
                 const cdpResult = await getCdpWalletData(effectiveAddress);
 
-                if (cdpResult.success && cdpResult.data) {
+                // FIX H-3: Add null safety for CDP data and history
+                if (cdpResult.success && cdpResult.data?.history) {
                     // Parse history from CDP
                     const cdpHistoryRaw = cdpResult.data.history;
                     const rawHistoryList = Array.isArray(cdpHistoryRaw)
@@ -104,21 +106,21 @@ export function useWrappedData(): UseWrappedDataResult {
 
                     if (transactions.length > 0) {
                         usedCdp = true;
-                        console.log('✅ CDP data loaded:', transactions.length, 'transactions');
+                        log('CDP data loaded:', transactions.length, 'transactions');
                     } else {
-                        console.log('⚠️ CDP returned empty data, will try Basescan');
+                        log('CDP returned empty data, will try Basescan');
                     }
                 } else {
-                    console.log('⚠️ CDP failed:', cdpResult.error || 'Unknown error');
+                    log('CDP failed:', cdpResult.error || 'No history data');
                 }
             } catch (cdpErr) {
-                console.warn('⚠️ CDP fetch error, falling back to Basescan:', cdpErr);
+                logWarn('CDP fetch error, falling back to Basescan:', cdpErr);
             }
 
             // Fallback to Basescan if CDP failed or returned empty
             let basescanFailed = false;
             if (!usedCdp) {
-                console.log('📡 Using Basescan as fallback...');
+                log('Using Basescan as fallback...');
                 try {
                     const [txResult, tokenTx, nftTx] = await Promise.all([
                         getTransactions(effectiveAddress),
@@ -158,9 +160,9 @@ export function useWrappedData(): UseWrappedDataResult {
                         tokenName: t.tokenName,
                     }));
 
-                    console.log('✅ Basescan data loaded:', transactions.length, 'transactions');
+                    log('Basescan data loaded:', transactions.length, 'transactions');
                 } catch (basescanErr) {
-                    console.error('❌ Basescan fetch error:', basescanErr);
+                    logWarn('Basescan fetch error:', basescanErr);
                     basescanFailed = true;
                 }
             }
@@ -173,7 +175,7 @@ export function useWrappedData(): UseWrappedDataResult {
             // Get basename (always fetch separately)
             const basename = await getBasename(effectiveAddress).catch(() => null);
 
-            console.log('📊 Data fetched:', {
+            log('Data fetched:', {
                 transactions: transactions.length,
                 tokenTransfers: tokenTransfers.length,
                 nftTransfers: nftTransfers.length,
@@ -184,12 +186,12 @@ export function useWrappedData(): UseWrappedDataResult {
             // Get real ETH price from CoinGecko
             const { getEthPrice } = await import('@/lib/prices');
             const ethPrice = await getEthPrice();
-            console.log('💰 Using ETH price:', ethPrice);
+            log('Using ETH price:', ethPrice);
 
             // Detect smart wallet usage
             const { countGaslessTransactions } = await import('@/lib/smartWallet');
             const gaslessCount = countGaslessTransactions(transactions);
-            console.log('🧠 Gasless transactions:', gaslessCount);
+            log('Gasless transactions:', gaslessCount);
 
             // Calculate metrics
             let wrappedData = calculateWrappedMetrics(
@@ -212,20 +214,20 @@ export function useWrappedData(): UseWrappedDataResult {
             try {
                 await setCachedWrappedData(addressLower, wrappedData);
             } catch (cacheError) {
-                console.warn('⚠️ Failed to cache wrapped data:', cacheError);
+                logWarn('Failed to cache wrapped data:', cacheError);
             }
 
             // BUG-4 FIX: Only set data if this is still the current fetch
             if (!isCurrent()) {
-                console.log('⚠️ Fetch cancelled - address changed');
+                log('Fetch cancelled - address changed');
                 return;
             }
 
             setData(wrappedData);
-            console.log('🎁 Wrapped data calculated:', wrappedData);
+            log('Wrapped data calculated successfully');
 
         } catch (err) {
-            console.error('Error fetching wrapped data:', err);
+            logWarn('Error fetching wrapped data:', err);
             if (isCurrent()) {
                 setError(err instanceof Error ? err.message : 'Failed to fetch wrapped data');
                 setData(null);

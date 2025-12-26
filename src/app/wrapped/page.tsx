@@ -14,6 +14,7 @@ export default function WrappedPage() {
     const [showExperience, setShowExperience] = useState(false);
     const [resolvedInfo, setResolvedInfo] = useState<{ address: string; name: string | null } | null>(null);
     const [isResolving, setIsResolving] = useState(false);
+    const [searchError, setSearchError] = useState<string | null>(null); // FIX M-6: State-based errors
 
     const {
         isLoading,
@@ -29,6 +30,8 @@ export default function WrappedPage() {
         const input = inputAddress.trim();
         if (!input) return;
 
+        setSearchError(null); // Clear previous errors
+
         // Check if it's an ENS name that needs resolution
         if (isEnsName(input)) {
             setIsResolving(true);
@@ -38,8 +41,8 @@ export default function WrappedPage() {
             setIsResolving(false);
 
             if (resolution.error || !resolution.address) {
-                // Show error via useWrappedData's error state (we'll set target to invalid)
-                alert(resolution.error || 'Could not resolve name');
+                // FIX M-6: Use state-based error instead of alert()
+                setSearchError(resolution.error || 'Could not resolve name');
                 return;
             }
 
@@ -51,7 +54,8 @@ export default function WrappedPage() {
             setTargetAddress(input);
             setShowExperience(true);
         } else {
-            alert('Please enter a valid address (0x...) or ENS name (.eth or .base.eth)');
+            // FIX M-6: Use state-based error instead of alert()
+            setSearchError('Please enter a valid address (0x...) or ENS name (.eth or .base.eth)');
         }
     };
 
@@ -219,10 +223,10 @@ export default function WrappedPage() {
                         )}
                     </button>
 
-                    {/* Error Message */}
-                    {error && (
+                    {/* Error Message - FIX M-6: Display searchError */}
+                    {(error || searchError) && (
                         <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm text-center">
-                            {error}
+                            {searchError || error}
                         </div>
                     )}
                 </div>

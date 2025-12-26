@@ -169,6 +169,7 @@ async function getLatestResults<T>(queryId: number): Promise<T[] | null> {
 /**
  * Get user percentile rank from Dune
  * Falls back to estimation if Dune is unavailable
+ * FIX M-1: Skip API call if query IDs not configured
  */
 export async function getUserPercentile(
     walletAddress: string,
@@ -183,9 +184,15 @@ export async function getUserPercentile(
         return estimated;
     }
 
-    // TODO: Replace with your actual Dune query ID
-    // You need to create a query in Dune that calculates percentile
-    const PERCENTILE_QUERY_ID = 4440000; // Replace with real ID
+    // FIX M-1: Get query ID from env, skip if not configured
+    const PERCENTILE_QUERY_ID = process.env.DUNE_PERCENTILE_QUERY_ID
+        ? parseInt(process.env.DUNE_PERCENTILE_QUERY_ID, 10)
+        : null;
+
+    if (!PERCENTILE_QUERY_ID) {
+        // No real query ID configured, use estimation
+        return estimated;
+    }
 
     try {
         const results = await executeAndWaitForResults<PercentileRow>(
@@ -196,11 +203,10 @@ export async function getUserPercentile(
         if (results && results.length > 0) {
             const row = results[0];
             const percentile = Math.round(row.percentile_rank * 100);
-            console.log('📊 Real percentile from Dune:', percentile);
             return percentile;
         }
     } catch (error) {
-        console.error('Dune percentile error:', error);
+        // Silently fall back to estimation
     }
 
     return estimated;
@@ -208,6 +214,7 @@ export async function getUserPercentile(
 
 /**
  * Get ecosystem-wide stats from Dune
+ * FIX M-1: Skip API call if query IDs not configured
  */
 export async function getEcosystemStats(): Promise<{
     totalUsers: number;
@@ -228,8 +235,14 @@ export async function getEcosystemStats(): Promise<{
         return defaults;
     }
 
-    // TODO: Replace with your actual Dune query ID
-    const STATS_QUERY_ID = 4440001; // Replace with real ID
+    // FIX M-1: Get query ID from env, skip if not configured
+    const STATS_QUERY_ID = process.env.DUNE_STATS_QUERY_ID
+        ? parseInt(process.env.DUNE_STATS_QUERY_ID, 10)
+        : null;
+
+    if (!STATS_QUERY_ID) {
+        return defaults;
+    }
 
     try {
         const results = await getLatestResults<EcosystemStatsRow>(STATS_QUERY_ID);
@@ -244,7 +257,7 @@ export async function getEcosystemStats(): Promise<{
             };
         }
     } catch (error) {
-        console.error('Dune ecosystem stats error:', error);
+        // Silently fall back to defaults
     }
 
     return defaults;

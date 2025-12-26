@@ -1,8 +1,14 @@
 // ENS Resolution Utility
 // Resolves both traditional .eth names (Ethereum mainnet) and .base.eth names (Base L2)
+// FIX H-1: Added timeout support to prevent indefinite hangs
 
 import { createPublicClient, http } from 'viem';
 import { base, mainnet } from 'viem/chains';
+
+// Constants
+const ENS_TIMEOUT_MS = 10000; // 10 second timeout for ENS resolution
+const isDev = process.env.NODE_ENV === 'development';
+const log = (...args: unknown[]) => isDev && console.log('[ENS]', ...args);
 
 // Base L2 client for .base.eth names
 const baseClient = createPublicClient({
@@ -25,6 +31,18 @@ const mainnetClient = createPublicClient({
 });
 
 /**
+ * Helper to add timeout to any promise (FIX H-1)
+ */
+function withTimeout<T>(promise: Promise<T>, ms: number, errorMessage: string): Promise<T> {
+    return Promise.race([
+        promise,
+        new Promise<T>((_, reject) =>
+            setTimeout(() => reject(new Error(errorMessage)), ms)
+        ),
+    ]);
+}
+
+/**
  * Check if a string looks like an ENS name
  */
 export function isEnsName(input: string): boolean {
@@ -33,7 +51,7 @@ export function isEnsName(input: string): boolean {
 }
 
 /**
- * Check if a string is a valid Ethereum address
+ * Check if a string is a valid Ethereum address (M-3: Centralized validation)
  */
 export function isValidAddress(input: string): boolean {
     return /^0x[a-fA-F0-9]{40}$/.test(input);
@@ -62,47 +80,57 @@ export async function resolveEnsName(name: string): Promise<string | null> {
 
 /**
  * Resolve a Base name (.base.eth) to an address
+ * FIX H-1: Added timeout
  */
 async function resolveBasename(name: string): Promise<string | null> {
     try {
-        console.log('🔍 Resolving Basename:', name);
+        log('Resolving Basename:', name);
 
-        const address = await baseClient.getEnsAddress({
-            name: name,
-            universalResolverAddress: '0xC625350928430e6115329961e93DeC90f8E29762',
-        });
+        const address = await withTimeout(
+            baseClient.getEnsAddress({
+                name: name,
+                universalResolverAddress: '0xC625350928430e6115329961e93DeC90f8E29762',
+            }),
+            ENS_TIMEOUT_MS,
+            'Basename resolution timed out'
+        );
 
         if (address) {
-            console.log('✅ Resolved Basename:', name, '->', address);
+            log('Resolved Basename:', name, '->', address);
             return address;
         }
 
         return null;
     } catch (error) {
-        console.warn('⚠️ Basename resolution failed:', error);
+        log('Basename resolution failed:', error);
         return null;
     }
 }
 
 /**
  * Resolve a traditional ENS name (.eth) to an address using Ethereum mainnet
+ * FIX H-1: Added timeout
  */
 async function resolveMainnetEns(name: string): Promise<string | null> {
     try {
-        console.log('🔍 Resolving ENS (mainnet):', name);
+        log('Resolving ENS (mainnet):', name);
 
-        const address = await mainnetClient.getEnsAddress({
-            name: name,
-        });
+        const address = await withTimeout(
+            mainnetClient.getEnsAddress({
+                name: name,
+            }),
+            ENS_TIMEOUT_MS,
+            'ENS resolution timed out'
+        );
 
         if (address) {
-            console.log('✅ Resolved ENS:', name, '->', address);
+            log('Resolved ENS:', name, '->', address);
             return address;
         }
 
         return null;
     } catch (error) {
-        console.warn('⚠️ ENS resolution failed:', error);
+        log('ENS resolution failed:', error);
         return null;
     }
 }
@@ -156,30 +184,40 @@ export async function resolveAddressOrName(input: string): Promise<{
 
 /**
  * Get basename for an address (reverse lookup on Base)
+ * FIX H-1: Added timeout
  */
 export async function getBasenameForAddress(address: string): Promise<string | null> {
     try {
-        const name = await baseClient.getEnsName({
-            address: address as `0x${string}`,
-        });
+        const name = await withTimeout(
+            baseClient.getEnsName({
+                address: address as `0x${string}`,
+            }),
+            ENS_TIMEOUT_MS,
+            'Basename lookup timed out'
+        );
         return name;
     } catch (error) {
-        console.error('Error getting Basename:', error);
+        log('Error getting Basename:', error);
         return null;
     }
 }
 
 /**
  * Get mainnet ENS for an address (reverse lookup on mainnet)
+ * FIX H-1: Added timeout
  */
 export async function getEnsForAddress(address: string): Promise<string | null> {
     try {
-        const name = await mainnetClient.getEnsName({
-            address: address as `0x${string}`,
-        });
+        const name = await withTimeout(
+            mainnetClient.getEnsName({
+                address: address as `0x${string}`,
+            }),
+            ENS_TIMEOUT_MS,
+            'ENS lookup timed out'
+        );
         return name;
     } catch (error) {
-        console.error('Error getting ENS:', error);
+        log('Error getting ENS:', error);
         return null;
     }
 }

@@ -1,7 +1,16 @@
 // Utility to fetch token prices from GeckoTerminal and DexScreener
+// FIX M-2: Added timeouts to prevent indefinite hangs
+// FIX M-5: Conditional logging for development only
+
 const GECKO_API_URL = 'https://api.geckoterminal.com/api/v2';
 const DEXSCREENER_API_URL = 'https://api.dexscreener.com/latest/dex/tokens';
 const NETWORK = 'base';
+const PRICE_TIMEOUT_MS = 5000; // 5 second timeout
+
+// Conditional logging (FIX M-5)
+const isDev = process.env.NODE_ENV === 'development';
+const log = (...args: unknown[]) => isDev && console.log('[Price]', ...args);
+const logWarn = (...args: unknown[]) => isDev && console.warn('[Price]', ...args);
 
 export interface TokenPrice {
     address: string;
@@ -9,7 +18,26 @@ export interface TokenPrice {
 }
 
 /**
+ * Fetch with timeout helper (FIX M-2)
+ */
+async function fetchWithTimeout(url: string, options: RequestInit = {}): Promise<Response> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), PRICE_TIMEOUT_MS);
+
+    try {
+        const response = await fetch(url, {
+            ...options,
+            signal: controller.signal,
+        });
+        return response;
+    } finally {
+        clearTimeout(timeoutId);
+    }
+}
+
+/**
  * Fetch prices from DexScreener (Fallback)
+ * FIX M-2: Added timeout
  */
 async function getDexScreenerPrices(addresses: string[]): Promise<Record<string, number>> {
     if (addresses.length === 0) return {};
@@ -18,13 +46,13 @@ async function getDexScreenerPrices(addresses: string[]): Promise<Record<string,
     const uniqueAddresses = Array.from(new Set(addresses.map(a => a.toLowerCase()))).slice(0, 30);
     const addressString = uniqueAddresses.join(',');
 
-    console.log(`🦅 Fetching DexScreener fallback for ${uniqueAddresses.length} tokens...`);
+    log(`Fetching DexScreener fallback for ${uniqueAddresses.length} tokens...`);
 
     try {
-        const response = await fetch(`${DEXSCREENER_API_URL}/${addressString}`);
+        const response = await fetchWithTimeout(`${DEXSCREENER_API_URL}/${addressString}`);
 
         if (!response.ok) {
-            console.error('🦅 DexScreener Error:', response.status);
+            logWarn('DexScreener Error:', response.status);
             return {};
         }
 
@@ -47,7 +75,11 @@ async function getDexScreenerPrices(addresses: string[]): Promise<Record<string,
 
         return prices;
     } catch (err) {
-        console.error('🦅 DexScreener Exception:', err);
+        if (err instanceof Error && err.name === 'AbortError') {
+            logWarn('DexScreener request timed out');
+        } else {
+            logWarn('DexScreener Exception:', err);
+        }
         return {};
     }
 }
@@ -55,6 +87,7 @@ async function getDexScreenerPrices(addresses: string[]): Promise<Record<string,
 /**
  * Fetch current prices for multiple tokens on Base
  * Strategy: GeckoTerminal -> Fallback to DexScreener
+ * FIX M-2: Added timeout
  */
 export async function getTokenPrices(addresses: string[]): Promise<Record<string, number>> {
     if (addresses.length === 0) return {};
@@ -62,7 +95,7 @@ export async function getTokenPrices(addresses: string[]): Promise<Record<string
     const uniqueAddresses = Array.from(new Set(addresses.map(a => a.toLowerCase()))).slice(0, 30);
     const addressString = uniqueAddresses.join(',');
 
-    console.log(`🦎 Fetching prices for ${uniqueAddresses.length} tokens...`);
+    log(`Fetching prices for ${uniqueAddresses.length} tokens...`);
 
     let prices: Record<string, number> = {};
 
@@ -71,7 +104,7 @@ export async function getTokenPrices(addresses: string[]): Promise<Record<string
         const url = `${GECKO_API_URL}/simple/networks/${NETWORK}/token_price/${addressString}`;
         const headers: HeadersInit = { 'Accept': 'application/json' };
 
-        const response = await fetch(url, { headers });
+        const response = await fetchWithTimeout(url, { headers });
 
         if (response.ok) {
             const data = await response.json();
@@ -80,26 +113,30 @@ export async function getTokenPrices(addresses: string[]): Promise<Record<string
             Object.entries(priceMap).forEach(([addr, price]) => {
                 prices[addr.toLowerCase()] = Number(price);
             });
-            console.log(`✅ GeckoTerminal found ${Object.keys(prices).length} prices`);
+            log(`GeckoTerminal found ${Object.keys(prices).length} prices`);
         } else {
-            console.warn('⚠️ GeckoTerminal failed, trying fallback...');
+            logWarn('GeckoTerminal failed, trying fallback...');
         }
     } catch (error) {
-        console.error('🦎 Fetch Error:', error);
+        if (error instanceof Error && error.name === 'AbortError') {
+            logWarn('GeckoTerminal request timed out');
+        } else {
+            logWarn('GeckoTerminal fetch error:', error);
+        }
     }
 
     // 2. Identify missing tokens and try DexScreener
     const missingTokens = uniqueAddresses.filter(addr => !prices[addr]);
 
     if (missingTokens.length > 0) {
-        console.log(`🦅 ${missingTokens.length} tokens missing prices, trying DexScreener...`);
+        log(`${missingTokens.length} tokens missing prices, trying DexScreener...`);
         const fallbackPrices = await getDexScreenerPrices(missingTokens);
 
         // Merge fallback prices
         Object.entries(fallbackPrices).forEach(([addr, price]) => {
             prices[addr] = price;
         });
-        console.log(`✅ DexScreener found ${Object.keys(fallbackPrices).length} missing prices`);
+        log(`DexScreener found ${Object.keys(fallbackPrices).length} missing prices`);
     }
 
     return prices;
