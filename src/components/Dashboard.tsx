@@ -131,6 +131,30 @@ export function Dashboard() {
           </div>
         )}
 
+        {/* === YEAR WRAPPED CTA === */}
+        <a
+          href="/wrapped"
+          className="block w-full p-4 rounded-2xl bg-gradient-to-r from-[#0052FF]/20 via-[#00C2FF]/20 to-[#00FFA3]/20 border border-[#0052FF]/30 hover:border-[#00FFA3]/50 transition-all group relative overflow-hidden animate-fade-in"
+        >
+          {/* Animated glow */}
+          <div className="absolute inset-0 bg-gradient-to-r from-[#0052FF]/0 via-[#00FFA3]/10 to-[#0052FF]/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+
+          <div className="relative flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#0052FF] to-[#00FFA3] flex items-center justify-center text-xl">
+                🎁
+              </div>
+              <div>
+                <div className="text-xs text-[#00FFA3] font-medium uppercase tracking-wider">New!</div>
+                <div className="text-white font-semibold">Your 2025 Year Wrapped</div>
+              </div>
+            </div>
+            <svg className="w-5 h-5 text-[#00FFA3] group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+        </a>
+
         {/* Score Hero */}
         {activeTab === 'score' && (
           <ScoreHero score={baseScore} percentile={percentile} isLoading={isLoading} />

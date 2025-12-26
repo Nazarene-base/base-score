@@ -143,6 +143,10 @@ export async function getCdpWalletData(address: string) {
     try {
         const network = 'base-mainnet';
 
+        // Create abort controller with 10 second timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+
         // --- Token Balances API ---
         // Endpoint: GET /platform/v2/evm/token-balances/{network}/{address}
         const balancePathShort = `/platform/v2/evm/token-balances/${network}/${address}`;
@@ -156,6 +160,7 @@ export async function getCdpWalletData(address: string) {
                 'Content-Type': 'application/json',
             },
             cache: 'no-store', // Always fetch fresh data
+            signal: controller.signal,
         }).then(async (res) => {
             if (!res.ok) {
                 const text = await res.text();
@@ -177,6 +182,7 @@ export async function getCdpWalletData(address: string) {
                 'Content-Type': 'application/json',
             },
             cache: 'no-store',
+            signal: controller.signal,
         }).then(async (res) => {
             if (!res.ok) {
                 const text = await res.text();
@@ -188,6 +194,9 @@ export async function getCdpWalletData(address: string) {
         // Execute both requests in parallel
         log('Fetching data from CDP...');
         const [balancesData, historyData] = await Promise.all([balancesPromise, historyPromise]);
+
+        // Clear the timeout
+        clearTimeout(timeoutId);
 
         // Check for API-level errors in response body
         checkApiError(balancesData);

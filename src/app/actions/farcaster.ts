@@ -124,3 +124,103 @@ function estimateAccountAge(fid: number): number {
 
     return Math.max(0, currentMonth - registrationMonth);
 }
+
+/**
+ * Farcaster Tips Data Interface
+ */
+export interface FarcasterTipsData {
+    tipsSent: number;
+    tipsReceived: number;
+    totalSentAmount: number;
+    totalReceivedAmount: number;
+}
+
+/**
+ * Get Farcaster tips data for a user
+ * Uses Neynar's tip tracking endpoints
+ */
+export async function getFarcasterTips(fid: number): Promise<FarcasterTipsData> {
+    const apiKey = process.env.NEYNAR_API_KEY;
+
+    // Default empty data
+    const emptyData: FarcasterTipsData = {
+        tipsSent: 0,
+        tipsReceived: 0,
+        totalSentAmount: 0,
+        totalReceivedAmount: 0,
+    };
+
+    if (!apiKey || !fid) {
+        return emptyData;
+    }
+
+    try {
+        console.log('💰 Farcaster: Fetching tips for FID', fid);
+
+        // Neynar doesn't have a direct tips endpoint in v2
+        // Tips on Farcaster are typically done through:
+        // 1. Warps (Warpcast's tipping currency)
+        // 2. DEGEN tips
+        // 3. Other token tips via casts
+
+        // For now, we return empty data. 
+        // A full implementation would scan for tip-related casts
+        // or use a specialized tips API like Degen tips API
+
+        // TODO: Integrate with Degen Tips API when available
+        // https://api.degen.tips/airdrop2/tips?fid={fid}
+
+        return emptyData;
+    } catch (error) {
+        console.error('❌ Farcaster tips error:', error);
+        return emptyData;
+    }
+}
+
+/**
+ * Get Farcaster tips from Degen API (if user has DEGEN tips)
+ */
+export async function getDegenTips(fid: number): Promise<{ sent: number; received: number }> {
+    if (!fid) {
+        return { sent: 0, received: 0 };
+    }
+
+    try {
+        // Degen Tips API
+        const response = await fetch(
+            `https://api.degen.tips/airdrop2/tips?fid=${fid}`,
+            { next: { revalidate: 300 } }
+        );
+
+        if (!response.ok) {
+            return { sent: 0, received: 0 };
+        }
+
+        const data = await response.json();
+
+        // The API returns array of tip events
+        if (Array.isArray(data)) {
+            let sent = 0;
+            let received = 0;
+
+            data.forEach((tip: { sender_fid: number; receiver_fid: number; amount: string }) => {
+                const amount = parseInt(tip.amount || '0', 10);
+                if (tip.sender_fid === fid) {
+                    sent += amount;
+                }
+                if (tip.receiver_fid === fid) {
+                    received += amount;
+                }
+            });
+
+            console.log('✅ Degen tips:', { sent, received });
+            return { sent, received };
+        }
+
+        return { sent: 0, received: 0 };
+    } catch (error) {
+        console.error('❌ Degen tips error:', error);
+        return { sent: 0, received: 0 };
+    }
+}
+

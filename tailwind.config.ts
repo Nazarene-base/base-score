@@ -20,6 +20,12 @@ const config: Config = {
         'success': '#00D395',
         'warning': '#FFB800',
         'danger': '#FF5252',
+        // Wrapped colors
+        'neon-green': '#00FFA3',
+        'midnight-void': '#050A19',
+        'electric-cyan': '#00C2FF',
+        'accent-purple': '#7B61FF',
+        'accent-pink': '#FF6B9D',
       },
       fontFamily: {
         sans: ['Space Grotesk', 'system-ui', 'sans-serif'],
