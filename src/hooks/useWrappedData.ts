@@ -3,7 +3,7 @@
 // Uses CDP as primary data source, falls back to Basescan if CDP fails
 // Features persistent caching via Vercel KV with memory fallback
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAccount } from 'wagmi';
 import { WrappedData } from '@/types/wrapped';
 import { calculateWrappedMetrics } from '@/lib/wrapped/calculateMetrics';
@@ -36,6 +36,9 @@ export function useWrappedData(): UseWrappedDataResult {
     const [error, setError] = useState<string | null>(null);
     const [data, setData] = useState<WrappedData | null>(null);
 
+    // BUG-4 FIX: Track current fetch to prevent race conditions
+    const currentFetchRef = useRef<number>(0);
+
     // Determine which address to use
     const effectiveAddress = targetAddress || (isConnected ? connectedAddress : null);
     const isUsingConnectedWallet = !targetAddress && !!connectedAddress;
@@ -51,6 +54,10 @@ export function useWrappedData(): UseWrappedDataResult {
     }, []);
 
     const fetchWrappedData = useCallback(async () => {
+        // BUG-4 FIX: Race condition guard - increment fetch ID
+        const fetchId = ++currentFetchRef.current;
+        const isCurrent = () => fetchId === currentFetchRef.current;
+
         if (!effectiveAddress) {
             setData(null);
             return;
@@ -197,13 +204,21 @@ export function useWrappedData(): UseWrappedDataResult {
                 console.warn('⚠️ Failed to cache wrapped data:', cacheError);
             }
 
+            // BUG-4 FIX: Only set data if this is still the current fetch
+            if (!isCurrent()) {
+                console.log('⚠️ Fetch cancelled - address changed');
+                return;
+            }
+
             setData(wrappedData);
             console.log('🎁 Wrapped data calculated:', wrappedData);
 
         } catch (err) {
             console.error('Error fetching wrapped data:', err);
-            setError(err instanceof Error ? err.message : 'Failed to fetch wrapped data');
-            setData(null);
+            if (isCurrent()) {
+                setError(err instanceof Error ? err.message : 'Failed to fetch wrapped data');
+                setData(null);
+            }
         } finally {
             setIsLoading(false);
         }

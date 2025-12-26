@@ -24,15 +24,22 @@ export async function getEthPrice(): Promise<number> {
     try {
         console.log('💰 Fetching ETH price from CoinGecko...');
 
+        // BUG-7 FIX: Add timeout to prevent hanging
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+
         const response = await fetch(
             'https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd',
             {
                 headers: {
                     'Accept': 'application/json',
                 },
+                signal: controller.signal,
                 next: { revalidate: 300 }, // Cache for 5 minutes
             }
         );
+
+        clearTimeout(timeoutId);
 
         if (!response.ok) {
             console.warn('⚠️ CoinGecko API error:', response.status);

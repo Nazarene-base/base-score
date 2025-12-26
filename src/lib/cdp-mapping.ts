@@ -57,9 +57,11 @@ export function mapCdpHistoryToBasescan(cdpTransactions: any[]): any[] {
             value,
             input,
             timeStamp,
-            // Pass through other fields if needed
             blockNumber: tx.block_number,
             nonce: tx.nonce,
+            // BUG-3 FIX: Add gasUsed and gasPrice for gas calculations
+            gasUsed: tx.gas_used || tx.gasUsed || '21000',
+            gasPrice: tx.gas_price || tx.gasPrice || '1000000',
         };
     });
 }

@@ -200,7 +200,9 @@ export function calculateWrappedMetrics(
         totalGasWei += gasUsed * gasPrice;
     });
 
-    const totalGasSpentETH = Number(totalGasWei) / 1e18;
+    // BUG-2 FIX: Safe BigInt to Number conversion to prevent overflow
+    // Split the conversion to avoid precision loss with very large values
+    const totalGasSpentETH = Number(totalGasWei / BigInt(1e9)) / 1e9;
     const totalGasSpentUSD = totalGasSpentETH * ethPrice;
     const avgGasPerTxUSD = totalTransactions > 0 ? totalGasSpentUSD / totalTransactions : 0;
 

@@ -72,8 +72,9 @@ async function fetchBaseScan<T>(params: Record<string, string>): Promise<T[]> {
 
   const url = `${BASESCAN_API}?${searchParams}`;
 
-  console.log('🔍 API Call:', params.module + '.' + params.action);
-  console.log('📍 URL:', url.replace(API_KEY, 'KEY_HIDDEN'));
+  // BUG-6 FIX: Use conditional logging
+  log('🔍 API Call:', params.module + '.' + params.action);
+  log('📍 URL:', url.replace(API_KEY, 'KEY_HIDDEN'));
 
   try {
     const response = await fetch(url);
@@ -85,7 +86,8 @@ async function fetchBaseScan<T>(params: Record<string, string>): Promise<T[]> {
 
     const data: BaseScanResponse<T> = await response.json();
 
-    console.log('📊 Response:', {
+    // BUG-6 FIX: Use conditional logging
+    log('📊 Response:', {
       status: data.status,
       message: data.message,
       resultType: typeof data.result,
@@ -94,12 +96,12 @@ async function fetchBaseScan<T>(params: Record<string, string>): Promise<T[]> {
 
     // Etherscan API V2 returns status "1" for success
     if (data.status === '1' && Array.isArray(data.result)) {
-      console.log('✅ Success:', data.result.length, 'items');
+      log('✅ Success:', data.result.length, 'items');
       return data.result;
     }
 
     if (data.status === '0') {
-      console.warn('⚠️ API Warning:', data.message);
+      logWarn('⚠️ API Warning:', data.message);
       // "No transactions found" is normal for new wallets
       if (data.message === 'No transactions found') {
         console.log('ℹ️ Wallet has no transactions on Base network');

@@ -193,10 +193,14 @@ export async function getCdpWalletData(address: string) {
 
         // Execute both requests in parallel
         log('Fetching data from CDP...');
-        const [balancesData, historyData] = await Promise.all([balancesPromise, historyPromise]);
 
-        // Clear the timeout
-        clearTimeout(timeoutId);
+        let balancesData, historyData;
+        try {
+            [balancesData, historyData] = await Promise.all([balancesPromise, historyPromise]);
+        } finally {
+            // BUG-1 FIX: Always clear timeout, even on error
+            clearTimeout(timeoutId);
+        }
 
         // Check for API-level errors in response body
         checkApiError(balancesData);
