@@ -61,8 +61,11 @@ async function getBalance(address: string): Promise<number> {
   }
 }
 
-// Helper to make API calls with Etherscan API V2
-async function fetchBaseScan<T>(params: Record<string, string>): Promise<T[]> {
+// Helper to make API calls with Etherscan API V2 - with retry logic
+async function fetchBaseScan<T>(params: Record<string, string>, retryCount = 0): Promise<T[]> {
+  const MAX_RETRIES = 3;
+  const RETRY_DELAY_MS = 1000; // 1 second between retries
+
   // Etherscan API V2 uses 'apikey' parameter and 'chainid'
   const searchParams = new URLSearchParams({
     chainid: '8453', // Base Mainnet
@@ -80,7 +83,15 @@ async function fetchBaseScan<T>(params: Record<string, string>): Promise<T[]> {
     const response = await fetch(url);
 
     if (!response.ok) {
-      console.error('❌ HTTP Error:', response.status, response.statusText);
+      logError('❌ HTTP Error:', response.status, response.statusText);
+
+      // Retry on 5xx or 429 (rate limit)
+      if ((response.status >= 500 || response.status === 429) && retryCount < MAX_RETRIES) {
+        log(`⏳ Retrying API call (attempt ${retryCount + 1}/${MAX_RETRIES})...`);
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS * (retryCount + 1)));
+        return fetchBaseScan<T>(params, retryCount + 1);
+      }
+
       return [];
     }
 
@@ -100,17 +111,35 @@ async function fetchBaseScan<T>(params: Record<string, string>): Promise<T[]> {
       return data.result;
     }
 
+    // Handle rate limiting message from Basescan
+    if (data.message?.includes('rate limit') || data.message?.includes('Max rate limit')) {
+      log('⚠️ Rate limited by Basescan API');
+      if (retryCount < MAX_RETRIES) {
+        log(`⏳ Retrying after rate limit (attempt ${retryCount + 1}/${MAX_RETRIES})...`);
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS * 2 * (retryCount + 1)));
+        return fetchBaseScan<T>(params, retryCount + 1);
+      }
+    }
+
     if (data.status === '0') {
       logWarn('⚠️ API Warning:', data.message);
       // "No transactions found" is normal for new wallets
       if (data.message === 'No transactions found') {
-        console.log('ℹ️ Wallet has no transactions on Base network');
+        log('ℹ️ Wallet has no transactions on Base network');
       }
     }
 
     return [];
   } catch (error) {
-    console.error('❌ Fetch Error:', error);
+    logError('❌ Fetch Error:', error);
+
+    // Retry on network errors
+    if (retryCount < MAX_RETRIES) {
+      log(`⏳ Retrying after network error (attempt ${retryCount + 1}/${MAX_RETRIES})...`);
+      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS * (retryCount + 1)));
+      return fetchBaseScan<T>(params, retryCount + 1);
+    }
+
     return [];
   }
 }

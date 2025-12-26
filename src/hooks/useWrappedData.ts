@@ -116,47 +116,58 @@ export function useWrappedData(): UseWrappedDataResult {
             }
 
             // Fallback to Basescan if CDP failed or returned empty
+            let basescanFailed = false;
             if (!usedCdp) {
                 console.log('📡 Using Basescan as fallback...');
-                const [txResult, tokenTx, nftTx] = await Promise.all([
-                    getTransactions(effectiveAddress),
-                    getTokenTransfers(effectiveAddress),
-                    getNFTTransfers(effectiveAddress),
-                ]);
+                try {
+                    const [txResult, tokenTx, nftTx] = await Promise.all([
+                        getTransactions(effectiveAddress),
+                        getTokenTransfers(effectiveAddress),
+                        getNFTTransfers(effectiveAddress),
+                    ]);
 
-                transactions = txResult.data.map(tx => ({
-                    hash: tx.hash,
-                    timeStamp: tx.timeStamp,
-                    from: tx.from,
-                    to: tx.to,
-                    value: tx.value,
-                    gasUsed: tx.gasUsed,
-                    gasPrice: tx.gasPrice,
-                    functionName: tx.functionName,
-                    isError: tx.isError,
-                }));
+                    transactions = txResult.data.map(tx => ({
+                        hash: tx.hash,
+                        timeStamp: tx.timeStamp,
+                        from: tx.from,
+                        to: tx.to,
+                        value: tx.value,
+                        gasUsed: tx.gasUsed,
+                        gasPrice: tx.gasPrice,
+                        functionName: tx.functionName,
+                        isError: tx.isError,
+                    }));
 
-                tokenTransfers = tokenTx.map(t => ({
-                    hash: t.hash,
-                    timeStamp: t.timeStamp,
-                    from: t.from,
-                    to: t.to,
-                    contractAddress: t.contractAddress,
-                    tokenName: t.tokenName,
-                    tokenSymbol: t.tokenSymbol,
-                    value: t.value,
-                }));
+                    tokenTransfers = tokenTx.map(t => ({
+                        hash: t.hash,
+                        timeStamp: t.timeStamp,
+                        from: t.from,
+                        to: t.to,
+                        contractAddress: t.contractAddress,
+                        tokenName: t.tokenName,
+                        tokenSymbol: t.tokenSymbol,
+                        value: t.value,
+                    }));
 
-                nftTransfers = nftTx.map(t => ({
-                    hash: t.hash,
-                    timeStamp: t.timeStamp,
-                    from: t.from,
-                    to: t.to,
-                    contractAddress: t.contractAddress,
-                    tokenName: t.tokenName,
-                }));
+                    nftTransfers = nftTx.map(t => ({
+                        hash: t.hash,
+                        timeStamp: t.timeStamp,
+                        from: t.from,
+                        to: t.to,
+                        contractAddress: t.contractAddress,
+                        tokenName: t.tokenName,
+                    }));
 
-                console.log('✅ Basescan data loaded:', transactions.length, 'transactions');
+                    console.log('✅ Basescan data loaded:', transactions.length, 'transactions');
+                } catch (basescanErr) {
+                    console.error('❌ Basescan fetch error:', basescanErr);
+                    basescanFailed = true;
+                }
+            }
+
+            // If both sources failed, show a helpful error
+            if (!usedCdp && basescanFailed) {
+                throw new Error('Unable to fetch wallet data. The server is busy - please try again in a few seconds.');
             }
 
             // Get basename (always fetch separately)
