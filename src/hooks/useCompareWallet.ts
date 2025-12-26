@@ -3,6 +3,7 @@ import { fetchFastData, fetchHistoryData, calculateWalletStats } from '@/lib/bas
 import { calculateBaseScore } from '@/utils/calculateScore';
 import { getPercentileEstimate } from '@/utils/getRankInfo';
 import { getTokenPrices } from '@/lib/price';
+import { resolveAddressOrName, isEnsName } from '@/lib/ens';
 import type { WalletStats } from '@/types';
 
 interface CompareWalletResult {
@@ -12,7 +13,9 @@ interface CompareWalletResult {
     score: number;
     percentile: number;
     ethBalance: number;
-    fetch: (address: string) => Promise<void>;
+    resolvedAddress: string | null;
+    resolvedName: string | null;
+    fetch: (input: string) => Promise<void>;
     clear: () => void;
 }
 
@@ -23,19 +26,46 @@ export function useCompareWallet(): CompareWalletResult {
     const [score, setScore] = useState(0);
     const [percentile, setPercentile] = useState(0);
     const [ethBalance, setEthBalance] = useState(0);
+    const [resolvedAddress, setResolvedAddress] = useState<string | null>(null);
+    const [resolvedName, setResolvedName] = useState<string | null>(null);
 
-    const fetchCompareData = useCallback(async (address: string) => {
-        // Validate address
-        if (!address || !address.startsWith('0x') || address.length !== 42) {
-            setError('Invalid address format');
-            return;
-        }
-
+    const fetchCompareData = useCallback(async (input: string) => {
         setIsLoading(true);
         setError(null);
         setStats(null);
+        setResolvedAddress(null);
+        setResolvedName(null);
 
         try {
+            // Step 0: Resolve ENS/basename to address if needed
+            let address = input.trim();
+            let displayName: string | null = null;
+
+            if (isEnsName(input)) {
+                console.log('🔍 Resolving ENS name:', input);
+                const resolution = await resolveAddressOrName(input);
+
+                if (resolution.error || !resolution.address) {
+                    setError(resolution.error || 'Could not resolve name');
+                    setIsLoading(false);
+                    return;
+                }
+
+                address = resolution.address;
+                displayName = resolution.resolvedName;
+                setResolvedAddress(address);
+                setResolvedName(displayName);
+                console.log('✅ Resolved to:', address);
+            } else {
+                // Validate direct address
+                if (!address.startsWith('0x') || address.length !== 42) {
+                    setError('Please enter a valid address (0x...) or ENS name (.eth or .base.eth)');
+                    setIsLoading(false);
+                    return;
+                }
+                setResolvedAddress(address);
+            }
+
             console.log('🔍 Fetching comparison data for:', address);
 
             // Step 1: Fast data (Alchemy)
@@ -77,7 +107,7 @@ export function useCompareWallet(): CompareWalletResult {
                 ...calculatedStats,
                 totalTransactions: realTxCount,
                 firstTxDate: fastData.firstTxDate,
-                basename: fastData.basename,
+                basename: displayName || fastData.basename,
                 isApproximate: history.isApproximate
             };
 
@@ -92,7 +122,7 @@ export function useCompareWallet(): CompareWalletResult {
 
         } catch (err) {
             console.error('❌ Error fetching comparison data:', err);
-            setError('Failed to fetch wallet data');
+            setError('Failed to fetch wallet data. Please try again.');
         } finally {
             setIsLoading(false);
         }
@@ -104,6 +134,8 @@ export function useCompareWallet(): CompareWalletResult {
         setPercentile(0);
         setEthBalance(0);
         setError(null);
+        setResolvedAddress(null);
+        setResolvedName(null);
     }, []);
 
     return {
@@ -113,6 +145,8 @@ export function useCompareWallet(): CompareWalletResult {
         score,
         percentile,
         ethBalance,
+        resolvedAddress,
+        resolvedName,
         fetch: fetchCompareData,
         clear
     };

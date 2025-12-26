@@ -5,12 +5,15 @@ import { useRouter } from 'next/navigation';
 import { useAccount } from 'wagmi';
 import { useWrappedData } from '@/hooks/useWrappedData';
 import { WrappedExperience } from '@/components/wrapped/WrappedExperience';
+import { resolveAddressOrName, isEnsName, isValidAddress } from '@/lib/ens';
 
 export default function WrappedPage() {
     const router = useRouter();
     const { isConnected, address } = useAccount();
     const [inputAddress, setInputAddress] = useState('');
     const [showExperience, setShowExperience] = useState(false);
+    const [resolvedInfo, setResolvedInfo] = useState<{ address: string; name: string | null } | null>(null);
+    const [isResolving, setIsResolving] = useState(false);
 
     const {
         isLoading,
@@ -22,15 +25,39 @@ export default function WrappedPage() {
         refetch
     } = useWrappedData();
 
-    const handleSearch = () => {
-        if (inputAddress && /^0x[a-fA-F0-9]{40}$/.test(inputAddress)) {
-            setTargetAddress(inputAddress);
+    const handleSearch = async () => {
+        const input = inputAddress.trim();
+        if (!input) return;
+
+        // Check if it's an ENS name that needs resolution
+        if (isEnsName(input)) {
+            setIsResolving(true);
+            setResolvedInfo(null);
+
+            const resolution = await resolveAddressOrName(input);
+            setIsResolving(false);
+
+            if (resolution.error || !resolution.address) {
+                // Show error via useWrappedData's error state (we'll set target to invalid)
+                alert(resolution.error || 'Could not resolve name');
+                return;
+            }
+
+            setResolvedInfo({ address: resolution.address, name: resolution.resolvedName });
+            setTargetAddress(resolution.address);
             setShowExperience(true);
+        } else if (isValidAddress(input)) {
+            setResolvedInfo(null);
+            setTargetAddress(input);
+            setShowExperience(true);
+        } else {
+            alert('Please enter a valid address (0x...) or ENS name (.eth or .base.eth)');
         }
     };
 
     const handleUseConnectedWallet = () => {
         if (address) {
+            setResolvedInfo(null);
             setTargetAddress('');
             setInputAddress('');
             setShowExperience(true);
@@ -40,10 +67,14 @@ export default function WrappedPage() {
     const handleBack = () => {
         if (showExperience) {
             setShowExperience(false);
+            setResolvedInfo(null);
         } else {
             router.push('/');
         }
     };
+
+    // Helper to detect if user is typing an ENS name
+    const isTypingEns = inputAddress.includes('.eth') || inputAddress.includes('.base');
 
     // Show the wrapped experience if we have data and user initiated it
     if (showExperience && data && !isLoading) {
@@ -135,7 +166,8 @@ export default function WrappedPage() {
                             type="text"
                             value={inputAddress}
                             onChange={(e) => setInputAddress(e.target.value)}
-                            placeholder="Enter wallet address (0x...)"
+                            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                            placeholder="0x... or name.eth or name.base.eth"
                             className="w-full p-4 pl-12 rounded-2xl bg-white/5 border border-white/10 focus:border-[#0052FF]/50 focus:outline-none focus:ring-2 focus:ring-[#0052FF]/20 transition-all font-mono text-sm placeholder:text-white/30"
                         />
                         <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -143,13 +175,38 @@ export default function WrappedPage() {
                         </svg>
                     </div>
 
+                    {/* ENS hint */}
+                    {isTypingEns && (
+                        <div className="p-3 rounded-xl bg-[#0052FF]/10 border border-[#0052FF]/20 text-[#00C2FF] text-xs">
+                            ✨ ENS names supported! We'll resolve .eth and .base.eth for you.
+                        </div>
+                    )}
+
+                    {/* Resolved info */}
+                    {resolvedInfo && (
+                        <div className="p-3 rounded-xl bg-green-500/10 border border-green-500/20">
+                            <p className="text-green-400 text-sm">
+                                ✓ Resolved <span className="font-bold">{resolvedInfo.name}</span>
+                                <span className="text-white/40 ml-2">({resolvedInfo.address.slice(0, 6)}...{resolvedInfo.address.slice(-4)})</span>
+                            </p>
+                        </div>
+                    )}
+
                     {/* Search Button */}
                     <button
                         onClick={handleSearch}
-                        disabled={!inputAddress || isLoading}
+                        disabled={!inputAddress || isLoading || isResolving}
                         className="w-full p-4 rounded-2xl bg-gradient-to-r from-[#0052FF] to-[#00C2FF] font-semibold text-white hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        {isLoading ? (
+                        {isResolving ? (
+                            <span className="flex items-center justify-center gap-2">
+                                <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                </svg>
+                                Resolving name...
+                            </span>
+                        ) : isLoading ? (
                             <span className="flex items-center justify-center gap-2">
                                 <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
