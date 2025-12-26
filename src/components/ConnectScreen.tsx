@@ -1,21 +1,67 @@
 // Connect Screen - Landing page before wallet connection
+// Fixed to handle connection errors gracefully
 'use client';
 
+import { useState } from 'react';
 import { useConnect } from 'wagmi';
 import { ZapIcon, TrophyIcon, TargetIcon, ChartIcon, WalletIcon } from './Icons';
 
 export function ConnectScreen() {
   const { connect, connectors, isPending } = useConnect();
+  const [error, setError] = useState<string | null>(null);
 
-  const handleConnect = () => {
-    // Try Coinbase Wallet first, then injected
+  const handleConnect = async () => {
+    setError(null);
+
+    // Try connectors in order of priority
     const coinbaseConnector = connectors.find((c) => c.id === 'coinbaseWalletSDK');
     const injectedConnector = connectors.find((c) => c.id === 'injected');
-    
-    if (coinbaseConnector) {
-      connect({ connector: coinbaseConnector });
-    } else if (injectedConnector) {
+    const walletConnectConnector = connectors.find((c) => c.id === 'walletConnect');
+
+    const connectorToUse = coinbaseConnector || injectedConnector || walletConnectConnector;
+
+    if (!connectorToUse) {
+      setError('No wallet found. Please install a wallet extension.');
+      return;
+    }
+
+    try {
+      await connect(
+        { connector: connectorToUse },
+        {
+          onError: (err) => {
+            console.error('Connection error:', err);
+
+            // Handle specific Coinbase Smart Wallet error
+            if (err.message?.includes('Communicator: failed to connect')) {
+              setError('Connection failed. Try using the Coinbase Wallet app or another wallet.');
+            } else if (err.message?.includes('User rejected')) {
+              setError('Connection cancelled. Please try again.');
+            } else {
+              setError('Failed to connect. Please try again or use a different wallet.');
+            }
+          },
+        }
+      );
+    } catch (err: any) {
+      console.error('Connect error:', err);
+
+      // Handle specific errors
+      if (err?.message?.includes('Communicator: failed to connect')) {
+        setError('Coinbase Smart Wallet connection issue. Try using the Coinbase Wallet app instead.');
+      } else {
+        setError('Connection failed. Please try again.');
+      }
+    }
+  };
+
+  const handleTryInjected = () => {
+    setError(null);
+    const injectedConnector = connectors.find((c) => c.id === 'injected');
+    if (injectedConnector) {
       connect({ connector: injectedConnector });
+    } else {
+      setError('No browser wallet found. Try installing MetaMask or Coinbase Wallet extension.');
     }
   };
 
@@ -54,6 +100,19 @@ export function ConnectScreen() {
         ))}
       </div>
 
+      {/* Error Message */}
+      {error && (
+        <div className="w-full max-w-xs mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-xl">
+          <p className="text-red-400 text-sm text-center">{error}</p>
+          <button
+            onClick={handleTryInjected}
+            className="w-full mt-2 text-xs text-blue-400 hover:text-blue-300 underline"
+          >
+            Try using browser wallet instead
+          </button>
+        </div>
+      )}
+
       {/* Connect Button */}
       <button
         onClick={handleConnect}
@@ -74,7 +133,7 @@ export function ConnectScreen() {
       </button>
 
       <p className="mt-4 text-xs text-gray-500">
-        Works with any Base-compatible wallet
+        Works with Coinbase Wallet, MetaMask, and more
       </p>
     </div>
   );
