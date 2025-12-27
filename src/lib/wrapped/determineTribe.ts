@@ -60,6 +60,41 @@ export function determineTribe(data: Partial<WrappedData>): { tribe: Tribe; trib
         else if (data.uniqueProtocolsUsed >= 3) scores['Explorer'] += 70;
     }
 
+    // === NEW: Builder Scoring ===
+    // Detect deployed contracts (transactions where to is null/empty)
+    if (data.contractsDeployed) {
+        if (data.contractsDeployed >= 10) scores['Builder'] += 100;
+        else if (data.contractsDeployed >= 5) scores['Builder'] += 80;
+        else if (data.contractsDeployed >= 2) scores['Builder'] += 60;
+        else if (data.contractsDeployed >= 1) scores['Builder'] += 40;
+    }
+
+    // === NEW: Social Butterfly Scoring ===
+    // Based on Farcaster activity - having account, followers, casts, tips
+    if (data.hasFarcaster) {
+        scores['Social Butterfly'] += 30; // Base points for having Farcaster
+
+        // Follower count bonus
+        if (data.farcasterFollowers) {
+            if (data.farcasterFollowers >= 1000) scores['Social Butterfly'] += 50;
+            else if (data.farcasterFollowers >= 500) scores['Social Butterfly'] += 40;
+            else if (data.farcasterFollowers >= 100) scores['Social Butterfly'] += 30;
+            else if (data.farcasterFollowers >= 10) scores['Social Butterfly'] += 15;
+        }
+
+        // Activity (casts) bonus  
+        if (data.farcasterCasts) {
+            if (data.farcasterCasts >= 500) scores['Social Butterfly'] += 30;
+            else if (data.farcasterCasts >= 100) scores['Social Butterfly'] += 20;
+            else if (data.farcasterCasts >= 20) scores['Social Butterfly'] += 10;
+        }
+    }
+
+    // Tip activity (social payments)
+    const totalTips = (data.farcasterTipsSent || 0) + (data.farcasterTipsReceived || 0);
+    if (totalTips > 50) scores['Social Butterfly'] += 20;
+    else if (totalTips > 10) scores['Social Butterfly'] += 10;
+
     // Activity bonus
     if (data.uniqueDaysActive) {
         if (data.uniqueDaysActive > 100) {

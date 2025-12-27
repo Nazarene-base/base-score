@@ -238,6 +238,29 @@ export function useWrappedData(): UseWrappedDataResult {
             wrappedData.gaslessTransactions = gaslessCount;
             wrappedData.hasSmartWallet = gaslessCount > 0;
 
+            // NEW: Fetch Farcaster data for Social Butterfly tribe
+            try {
+                log('Fetching Farcaster data for Social Butterfly scoring...');
+                const { getFarcasterData } = await import('@/app/actions/farcaster');
+                const farcasterData = await getFarcasterData(effectiveAddress);
+
+                if (farcasterData) {
+                    wrappedData.hasFarcaster = true;
+                    wrappedData.farcasterFollowers = farcasterData.followerCount || 0;
+                    wrappedData.farcasterCasts = 0; // Neynar API doesn't return cast count by default
+                    log('Farcaster data loaded:', farcasterData.username, 'followers:', farcasterData.followerCount);
+                } else {
+                    wrappedData.hasFarcaster = false;
+                    wrappedData.farcasterFollowers = 0;
+                    wrappedData.farcasterCasts = 0;
+                }
+            } catch (farcasterErr) {
+                logWarn('Farcaster fetch failed:', farcasterErr);
+                wrappedData.hasFarcaster = false;
+                wrappedData.farcasterFollowers = 0;
+                wrappedData.farcasterCasts = 0;
+            }
+
             // Calculate percentile from transaction count (optionally fetch from Dune)
             wrappedData.percentileRank = estimatePercentile(wrappedData.totalTransactions);
 

@@ -106,6 +106,12 @@ export interface WrappedData {
     // === FARCASTER SOCIAL ===
     farcasterTipsSent: number;               // Tips sent via Farcaster
     farcasterTipsReceived: number;           // Tips received
+    farcasterFollowers: number;              // NEW: Farcaster follower count
+    farcasterCasts: number;                  // NEW: Number of casts
+    hasFarcaster: boolean;                   // NEW: Has Farcaster account
+
+    // === BUILDER ===
+    contractsDeployed: number;               // NEW: Number of contracts deployed
 
     // === PROTOCOL DIVERSITY ===
     protocolDiversityIndex: number;          // (Unique Protocols / Total TXs) × 100

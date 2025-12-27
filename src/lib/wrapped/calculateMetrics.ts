@@ -389,9 +389,14 @@ export function calculateWrappedMetrics(
         usdcReceivedTotal: calculateUsdcReceived(tokens2025, walletAddress),
         uniquePaymentRecipients: getUniquePaymentRecipients(tokens2025, walletAddress),
         largestPaymentUSD: getLargestPayment(tokens2025, walletAddress),
-        // Farcaster (would need Farcaster API integration)
+        // Farcaster (populated separately from Farcaster API)
         farcasterTipsSent: 0,
         farcasterTipsReceived: 0,
+        farcasterFollowers: 0,    // NEW: Populated from Farcaster API
+        farcasterCasts: 0,         // NEW: Populated from Farcaster API
+        hasFarcaster: false,       // NEW: Populated from Farcaster API
+        // Builder: Count contract deployments (transactions where 'to' is null/empty)
+        contractsDeployed: countContractDeployments(txs2025, walletAddress),
         // Protocol Diversity Index
         protocolDiversityIndex: totalTransactions > 0
             ? Math.round((uniqueProtocolsUsed / totalTransactions) * 100 * 10) / 10
@@ -517,3 +522,14 @@ function getMostExperimentalDay(
     return maxDay ? { date: maxDay, uniqueContracts: maxContracts } : null;
 }
 
+// Count contract deployments (transactions where 'to' is null or empty = contract creation)
+function countContractDeployments(
+    transactions: { from: string; to: string }[],
+    walletAddress: string
+): number {
+    const walletLower = walletAddress.toLowerCase();
+    return transactions.filter(tx =>
+        tx.from?.toLowerCase() === walletLower &&
+        (!tx.to || tx.to === '' || tx.to === '0x' || tx.to === '0x0000000000000000000000000000000000000000')
+    ).length;
+}
