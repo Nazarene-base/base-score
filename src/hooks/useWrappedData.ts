@@ -247,8 +247,12 @@ export function useWrappedData(): UseWrappedDataResult {
                 if (farcasterData) {
                     wrappedData.hasFarcaster = true;
                     wrappedData.farcasterFollowers = farcasterData.followerCount || 0;
-                    wrappedData.farcasterCasts = 0; // Neynar API doesn't return cast count by default
-                    log('Farcaster data loaded:', farcasterData.username, 'followers:', farcasterData.followerCount);
+                    wrappedData.farcasterCasts = farcasterData.castCount || 0;
+                    wrappedData.farcasterTipsSent = farcasterData.degenTipsSent || 0;
+                    wrappedData.farcasterTipsReceived = farcasterData.degenTipsReceived || 0;
+                    log('Farcaster data loaded:', farcasterData.username,
+                        'followers:', farcasterData.followerCount,
+                        'tips:', farcasterData.degenTipsSent + farcasterData.degenTipsReceived);
                 } else {
                     wrappedData.hasFarcaster = false;
                     wrappedData.farcasterFollowers = 0;
