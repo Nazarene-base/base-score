@@ -69,6 +69,15 @@ export function determineTribe(data: Partial<WrappedData>): { tribe: Tribe; trib
         else if (data.contractsDeployed >= 1) scores['Builder'] += 40;
     }
 
+    // === NEW: Yield Farmer Scoring ===
+    // Based on interactions with lending, staking, and LP protocols
+    if (data.defiInteractions) {
+        if (data.defiInteractions >= 50) scores['Yield Farmer'] += 100;
+        else if (data.defiInteractions >= 20) scores['Yield Farmer'] += 80;
+        else if (data.defiInteractions >= 10) scores['Yield Farmer'] += 60;
+        else if (data.defiInteractions >= 5) scores['Yield Farmer'] += 40;
+    }
+
     // === NEW: Social Butterfly Scoring ===
     // Based on Farcaster activity - having account, followers, casts, tips
     if (data.hasFarcaster) {

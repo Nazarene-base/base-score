@@ -397,6 +397,8 @@ export function calculateWrappedMetrics(
         hasFarcaster: false,       // NEW: Populated from Farcaster API
         // Builder: Count contract deployments (transactions where 'to' is null/empty)
         contractsDeployed: countContractDeployments(txs2025, walletAddress),
+        // Yield Farmer: Count DeFi protocol interactions
+        defiInteractions: countDefiInteractions(txs2025),
         // Protocol Diversity Index
         protocolDiversityIndex: totalTransactions > 0
             ? Math.round((uniqueProtocolsUsed / totalTransactions) * 100 * 10) / 10
@@ -531,5 +533,41 @@ function countContractDeployments(
     return transactions.filter(tx =>
         tx.from?.toLowerCase() === walletLower &&
         (!tx.to || tx.to === '' || tx.to === '0x' || tx.to === '0x0000000000000000000000000000000000000000')
+    ).length;
+}
+
+// DeFi protocols on Base for Yield Farmer detection
+// Includes lending, staking, and liquidity protocols
+const DEFI_PROTOCOLS: string[] = [
+    // Aave V3
+    '0xa238dd80c259a72e81d7e4664a9801593f98d1c5', // Aave Pool
+    '0x18cd499e3d7ed42feba981ac9236a278e4cdc2ee', // Aave aToken
+    // Compound
+    '0x46e6b214b524310239732d51387075e0e70970bf', // Compound
+    '0x9c4ec768c28520b50860ea7a15bd7213a9ff58bf', // Compound cToken
+    // Morpho
+    '0xbbbbbbbbbb9cc5e90e3b3af64bdaf62c37eeffcb', // Morpho Blue
+    // Extra Finance
+    '0xbb505c54d71e9e599cb8435b4f0ceec05fc71cbd', // Extra Finance
+    // Moonwell
+    '0x628ff693426583d9a7fb391e54366292f509d457', // Moonwell USDC
+    '0x703843c3379b52f9ff486c9f5892218d2a065cc8', // Moonwell ETH
+    // Aerodrome (LP/Staking)
+    '0xcf77a3ba9a5ca399b7c97c74d54e5b1beb874e43', // Aerodrome Router
+    '0x420dd381b31aef6683db6b902084cb0ffece40da', // Aerodrome Voter
+    // Beefy
+    '0x5e1caC103F943Cd84A1E92dAde4145664ebf692A', // Beefy vault
+    // Seamless Protocol
+    '0x8f44fd754285aa80b5dcf789e9f69b7e5c4f21a4', // Seamless
+    // Socket / Bungee (bridging often used for yield)
+    '0x3a23f943181408eac424116af7b7790c94cb97a5', // Socket Gateway
+].map(addr => addr.toLowerCase());
+
+// Count interactions with DeFi protocols
+function countDefiInteractions(
+    transactions: { to: string }[]
+): number {
+    return transactions.filter(tx =>
+        tx.to && DEFI_PROTOCOLS.includes(tx.to.toLowerCase())
     ).length;
 }

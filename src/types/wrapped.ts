@@ -113,6 +113,9 @@ export interface WrappedData {
     // === BUILDER ===
     contractsDeployed: number;               // NEW: Number of contracts deployed
 
+    // === YIELD FARMER ===
+    defiInteractions: number;                // NEW: Count of lending/staking/LP interactions
+
     // === PROTOCOL DIVERSITY ===
     protocolDiversityIndex: number;          // (Unique Protocols / Total TXs) × 100
 
