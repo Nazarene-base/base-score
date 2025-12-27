@@ -208,10 +208,26 @@ export function useWalletData(): UseWalletDataResult {
               basename: basename // Now properly fetched
             };
 
+            // CDP-BUG-2 FIX: CDP unified history doesn't properly split token/NFT transfers
+            // Always fetch these from Basescan to ensure complete DeFi metrics
+            let tokenTransfers: any[] = [];
+            let nftTransfers: any[] = [];
+            try {
+              console.log('📥 Fetching token/NFT transfers from Basescan (CDP supplement)...');
+              const { getTokenTransfers, getNFTTransfers } = await import('@/lib/basescan');
+              [tokenTransfers, nftTransfers] = await Promise.all([
+                getTokenTransfers(address),
+                getNFTTransfers(address),
+              ]);
+              console.log(`✅ Basescan supplement: ${tokenTransfers.length} token transfers, ${nftTransfers.length} NFT transfers`);
+            } catch (supplementErr) {
+              console.warn('⚠️ Basescan supplement fetch failed:', supplementErr);
+            }
+
             history = {
               transactions: mappedTransactions,
-              tokenTransfers: [], // CDP unified history to be split in future
-              nftTransfers: [],  // CDP unified history to be split in future
+              tokenTransfers: tokenTransfers,  // CDP-BUG-2 FIX: Now from Basescan
+              nftTransfers: nftTransfers,      // CDP-BUG-2 FIX: Now from Basescan
               isApproximate: false
             };
 

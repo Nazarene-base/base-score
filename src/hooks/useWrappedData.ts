@@ -107,6 +107,37 @@ export function useWrappedData(): UseWrappedDataResult {
                     if (transactions.length > 0) {
                         usedCdp = true;
                         log('CDP data loaded:', transactions.length, 'transactions');
+
+                        // CDP-BUG-2 FIX: CDP doesn't properly split token/NFT transfers
+                        // Always fetch these from Basescan for complete DeFi metrics
+                        try {
+                            log('Supplementing CDP with token/NFT data from Basescan...');
+                            const [tokenTx, nftTx] = await Promise.all([
+                                getTokenTransfers(effectiveAddress),
+                                getNFTTransfers(effectiveAddress),
+                            ]);
+                            tokenTransfers = tokenTx.map(t => ({
+                                hash: t.hash,
+                                timeStamp: t.timeStamp,
+                                from: t.from,
+                                to: t.to,
+                                contractAddress: t.contractAddress,
+                                tokenName: t.tokenName,
+                                tokenSymbol: t.tokenSymbol,
+                                value: t.value,
+                            }));
+                            nftTransfers = nftTx.map(t => ({
+                                hash: t.hash,
+                                timeStamp: t.timeStamp,
+                                from: t.from,
+                                to: t.to,
+                                contractAddress: t.contractAddress,
+                                tokenName: t.tokenName,
+                            }));
+                            log('Basescan supplement:', tokenTransfers.length, 'token transfers,', nftTransfers.length, 'NFT transfers');
+                        } catch (supplementErr) {
+                            logWarn('Basescan supplement failed:', supplementErr);
+                        }
                     } else {
                         log('CDP returned empty data, will try Basescan');
                     }

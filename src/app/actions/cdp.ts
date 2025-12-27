@@ -143,9 +143,9 @@ export async function getCdpWalletData(address: string) {
     try {
         const network = 'base-mainnet';
 
-        // Create abort controller with 10 second timeout
+        // Create abort controller with 25 second timeout (increased from 10s - BUG-C1 FIX)
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        const timeoutId = setTimeout(() => controller.abort(), 25000);
 
         // --- Token Balances API ---
         // Endpoint: GET /platform/v2/evm/token-balances/{network}/{address}
@@ -171,12 +171,13 @@ export async function getCdpWalletData(address: string) {
 
         // --- Transaction History API ---
         // Endpoint: GET /platform/v1/networks/{network}/addresses/{address}/transactions
+        // CDP-BUG-1 FIX: Increase limit from 100 to 500 for more complete data
         const historyPathShort = `/platform/v1/networks/${network}/addresses/${address}/transactions`;
 
         log('Generating JWT for history...');
         const historyJwt = await generateJwt('GET', historyPathShort);
 
-        const historyPromise = fetch(`https://${CDP_API_HOST}${historyPathShort}?limit=100`, {
+        const historyPromise = fetch(`https://${CDP_API_HOST}${historyPathShort}?limit=500`, {
             headers: {
                 'Authorization': `Bearer ${historyJwt}`,
                 'Content-Type': 'application/json',
@@ -205,6 +206,16 @@ export async function getCdpWalletData(address: string) {
         // Check for API-level errors in response body
         checkApiError(balancesData);
         checkApiError(historyData);
+
+        // CDP-BUG-4 FIX: Log response structure for debugging
+        log('CDP balances response structure:', Object.keys(balancesData || {}));
+        log('CDP history response structure:', Object.keys(historyData || {}));
+
+        // Log transaction count for debugging
+        const historyItems = Array.isArray(historyData)
+            ? historyData
+            : (historyData?.transactions || historyData?.data || []);
+        log('CDP transaction count:', Array.isArray(historyItems) ? historyItems.length : 'unknown');
 
         log('CDP data received successfully');
 

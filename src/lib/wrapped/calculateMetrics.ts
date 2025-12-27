@@ -19,7 +19,7 @@ import {
 
 // 2025 date range constants
 const YEAR_START = new Date('2025-01-01T00:00:00Z');
-const YEAR_END = new Date(); // Current date
+// BUG-H3 FIX: YEAR_END is now calculated in the function, not at module load time
 
 // L1 gas cost estimation (per transaction average)
 const AVG_L1_GAS_PER_TX_USD = 12; // Ethereum mainnet average
@@ -56,11 +56,11 @@ interface NFTTransfer {
     tokenName: string;
 }
 
-// Filter transactions to 2025
-function filterTo2025<T extends { timeStamp: string }>(items: T[]): T[] {
+// Filter transactions to 2025 (BUG-H3 FIX: Pass yearEnd dynamically)
+function filterTo2025<T extends { timeStamp: string }>(items: T[], yearEnd: Date): T[] {
     return items.filter(item => {
         const date = new Date(Number(item.timeStamp) * 1000);
-        return date >= YEAR_START && date <= YEAR_END;
+        return date >= YEAR_START && date <= yearEnd;
     });
 }
 
@@ -181,23 +181,30 @@ export function calculateWrappedMetrics(
     basename: string | null,
     ethPrice: number = 3500
 ): WrappedData {
+    // BUG-H3 FIX: Calculate YEAR_END at function execution time, not module load time
+    const YEAR_END = new Date();
+
     // Get first transaction ever
     const firstEver = getFirstTransaction(transactions);
 
     // Filter to 2025 only for year-specific stats
-    const txs2025 = filterTo2025(transactions);
+    const txs2025 = filterTo2025(transactions, YEAR_END);
     const first2025 = getFirstTransaction(txs2025);
 
     // Basic counts
     const totalTransactions = txs2025.length;
     const totalTransactionsAllTime = transactions.length;
 
-    // Gas calculations
+    // Gas calculations (BUG-H2 FIX: Add try-catch for safety)
     let totalGasWei = BigInt(0);
     txs2025.forEach(tx => {
-        const gasUsed = BigInt(tx.gasUsed || '0');
-        const gasPrice = BigInt(tx.gasPrice || '0');
-        totalGasWei += gasUsed * gasPrice;
+        try {
+            const gasUsed = BigInt(tx.gasUsed || '0');
+            const gasPrice = BigInt(tx.gasPrice || '0');
+            totalGasWei += gasUsed * gasPrice;
+        } catch {
+            // Skip malformed gas data
+        }
     });
 
     // BUG-2 FIX: Safe BigInt to Number conversion to prevent overflow
@@ -244,7 +251,7 @@ export function calculateWrappedMetrics(
     }));
 
     // NFT calculations (FILTERED for scams)
-    const nfts2025 = filterTo2025(nftTransfers);
+    const nfts2025 = filterTo2025(nftTransfers, YEAR_END);
     const nftStats = filterLegitimateNFTs(nfts2025, walletAddress, txs2025);
 
     // Calculate total volume from ETH transactions (value field)
@@ -273,7 +280,7 @@ export function calculateWrappedMetrics(
     const biggestSwapToken = 'ETH';
 
     // For token transfers, we estimate value (since we don't have real-time prices for all tokens)
-    const tokens2025 = filterTo2025(tokenTransfers);
+    const tokens2025 = filterTo2025(tokenTransfers, YEAR_END);
     // Estimate: each token transfer represents some value
     // This is a simplified approach - in production you'd fetch token prices
     const estimatedTokenVolumeUSD = tokens2025.length * 25; // Conservative estimate per transfer

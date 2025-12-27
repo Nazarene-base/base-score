@@ -140,8 +140,9 @@ export async function getNFTTransactions(walletAddress: string): Promise<{
 
 /**
  * Calculate NFT statistics from NFTScan data
+ * BUG-M2 FIX: Accept ethPrice as parameter instead of hardcoding
  */
-export async function getNFTStats(walletAddress: string): Promise<{
+export async function getNFTStats(walletAddress: string, ethPrice: number = 3500): Promise<{
     totalOwned: number;
     minted: number;
     collected: number;
@@ -184,12 +185,11 @@ export async function getNFTStats(walletAddress: string): Promise<{
             .sort(([, a], [, b]) => b - a)
             .map(([name, count]) => ({ name, count }));
 
-        // Calculate total spent (from sales data)
+        // Calculate total spent (from sales data) - BUG-M2 FIX: Use dynamic ethPrice
         let totalSpentUSD = 0;
         txs2025.forEach(tx => {
             if (tx.receive.toLowerCase() === walletAddress.toLowerCase() && tx.trade_price) {
-                // Rough ETH to USD conversion
-                totalSpentUSD += tx.trade_price * 3500;
+                totalSpentUSD += tx.trade_price * ethPrice;
             }
         });
 

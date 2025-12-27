@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
 import { WrappedData } from '@/types/wrapped';
 
@@ -32,17 +32,26 @@ interface WrappedExperienceProps {
 
 const SWIPE_THRESHOLD = 50;
 
+// BUG-L2 FIX: Pre-generate stable random values for particles
+const PARTICLE_CONFIG = Array.from({ length: 15 }, (_, i) => ({
+    id: i,
+    left: (17 * i + 23) % 100,        // Pseudo-random using deterministic formula
+    top: (31 * i + 47) % 100,
+    duration: 3 + (i % 3),            // Varies between 3-5 seconds
+    delay: (i * 0.2) % 2,             // Staggered delays
+}));
+
 // Floating particles component for background ambiance
 function FloatingParticles() {
     return (
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            {[...Array(15)].map((_, i) => (
+            {PARTICLE_CONFIG.map((particle) => (
                 <motion.div
-                    key={i}
+                    key={particle.id}
                     className="absolute w-1 h-1 rounded-full bg-[#00FFA3]"
                     style={{
-                        left: `${Math.random() * 100}%`,
-                        top: `${Math.random() * 100}%`,
+                        left: `${particle.left}%`,
+                        top: `${particle.top}%`,
                     }}
                     animate={{
                         y: [0, -30, 0],
@@ -50,9 +59,9 @@ function FloatingParticles() {
                         scale: [1, 1.5, 1],
                     }}
                     transition={{
-                        duration: 3 + Math.random() * 2,
+                        duration: particle.duration,
                         repeat: Infinity,
-                        delay: Math.random() * 2,
+                        delay: particle.delay,
                         ease: 'easeInOut',
                     }}
                 />
@@ -60,6 +69,7 @@ function FloatingParticles() {
         </div>
     );
 }
+
 
 export function WrappedExperience({ data, onBack }: WrappedExperienceProps) {
     const [currentIndex, setCurrentIndex] = useState(0);

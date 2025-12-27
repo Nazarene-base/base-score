@@ -77,7 +77,8 @@ async function fetchBaseScan<T>(params: Record<string, string>, retryCount = 0):
 
   // BUG-6 FIX: Use conditional logging
   log('🔍 API Call:', params.module + '.' + params.action);
-  log('📍 URL:', url.replace(API_KEY, 'KEY_HIDDEN'));
+  // BUG-M3 FIX: Ensure API key is not exposed even if empty
+  log('📍 URL:', API_KEY ? url.replace(API_KEY, 'KEY_HIDDEN') : url.replace(/apikey=[^&]*/i, 'apikey=KEY_HIDDEN'));
 
   try {
     const response = await fetch(url);
@@ -147,7 +148,8 @@ async function fetchBaseScan<T>(params: Record<string, string>, retryCount = 0):
 // Get all transactions for an address (multi-page, up to 5000)
 // Returns { transactions, isApproximate } where isApproximate=true if we hit the limit
 export async function getTransactions(address: string): Promise<{ data: BaseScanTransaction[], isApproximate: boolean }> {
-  console.log('📥 Fetching transactions (multi-page) for:', address);
+  // BUG-L1 FIX: Use conditional logging
+  log('📥 Fetching transactions (multi-page) for:', address);
 
   const MAX_PAGES = 5;
   const PAGE_SIZE = 1000;
@@ -167,7 +169,7 @@ export async function getTransactions(address: string): Promise<{ data: BaseScan
     });
 
     allTransactions = [...allTransactions, ...result];
-    console.log(`📄 Page ${page}: ${result.length} transactions`);
+    log(`📄 Page ${page}: ${result.length} transactions`);
 
     // If we got fewer than PAGE_SIZE, we've reached the end
     if (result.length < PAGE_SIZE) {
@@ -177,18 +179,19 @@ export async function getTransactions(address: string): Promise<{ data: BaseScan
     // If we fetched all pages and still getting full pages, data is approximate
     if (page === MAX_PAGES && result.length === PAGE_SIZE) {
       isApproximate = true;
-      console.log('⚠️ Wallet has >5000 transactions - data is approximate');
+      log('⚠️ Wallet has >5000 transactions - data is approximate');
     }
   }
 
-  console.log(`✓ Total: ${allTransactions.length} transactions${isApproximate ? ' (approximate)' : ''}`);
+  log(`✓ Total: ${allTransactions.length} transactions${isApproximate ? ' (approximate)' : ''}`);
   return { data: allTransactions, isApproximate };
 }
 
 // NEW: Get ONLY the first (oldest) transaction for accurate wallet age
 // This uses sort=asc and offset=1 to get exactly one result - the first ever tx
 export async function fetchFirstTransactionDate(address: string): Promise<Date | null> {
-  console.log('📅 Fetching first transaction date for:', address);
+  // BUG-L1 FIX: Use conditional logging
+  log('📅 Fetching first transaction date for:', address);
 
   const result = await fetchBaseScan<BaseScanTransaction>({
     module: 'account',
@@ -204,51 +207,80 @@ export async function fetchFirstTransactionDate(address: string): Promise<Date |
   if (result.length > 0 && result[0].timeStamp) {
     const timestamp = parseInt(result[0].timeStamp, 10);
     const date = new Date(timestamp * 1000);
-    console.log('✅ First transaction date:', date.toISOString());
+    log('✅ First transaction date:', date.toISOString());
     return date;
   }
 
-  console.log('ℹ️ No transactions found - wallet is new');
+  log('ℹ️ No transactions found - wallet is new');
   return null;
 }
 
-// Get ERC-20 token transfers
+// Get ERC-20 token transfers (BUG-C2 FIX: Multi-page pagination)
 export async function getTokenTransfers(address: string): Promise<BaseScanTokenTransfer[]> {
-  console.log('📥 Fetching token transfers for:', address);
+  // BUG-L1 FIX: Use conditional logging
+  log('📥 Fetching token transfers (multi-page) for:', address);
 
-  const result = await fetchBaseScan<BaseScanTokenTransfer>({
-    module: 'account',
-    action: 'tokentx',
-    address,
-    startblock: '0',
-    endblock: '99999999',
-    page: '1',
-    offset: '1000',
-    sort: 'desc',
-  });
+  const MAX_PAGES = 3;
+  const PAGE_SIZE = 1000;
+  let allTransfers: BaseScanTokenTransfer[] = [];
 
-  console.log(`✓ ${result.length} token transfers retrieved`);
-  return result;
+  for (let page = 1; page <= MAX_PAGES; page++) {
+    const result = await fetchBaseScan<BaseScanTokenTransfer>({
+      module: 'account',
+      action: 'tokentx',
+      address,
+      startblock: '0',
+      endblock: '99999999',
+      page: String(page),
+      offset: String(PAGE_SIZE),
+      sort: 'desc',
+    });
+
+    allTransfers = [...allTransfers, ...result];
+
+    // If we got fewer than PAGE_SIZE, we've reached the end
+    if (result.length < PAGE_SIZE) {
+      break;
+    }
+  }
+
+  log(`✓ ${allTransfers.length} token transfers retrieved`);
+  return allTransfers;
 }
 
-// Get ERC-721 NFT transfers
+// Get ERC-721 NFT transfers (BUG-C3 FIX: Multi-page pagination)
 export async function getNFTTransfers(address: string): Promise<BaseScanTokenTransfer[]> {
-  console.log('📥 Fetching NFT transfers for:', address);
+  // BUG-L1 FIX: Use conditional logging
+  log('📥 Fetching NFT transfers (multi-page) for:', address);
 
-  const result = await fetchBaseScan<BaseScanTokenTransfer>({
-    module: 'account',
-    action: 'tokennfttx',
-    address,
-    startblock: '0',
-    endblock: '99999999',
-    page: '1',
-    offset: '500',
-    sort: 'desc',
-  });
+  const MAX_PAGES = 3;
+  const PAGE_SIZE = 500;
+  let allTransfers: BaseScanTokenTransfer[] = [];
 
-  console.log(`✓ ${result.length} NFT transfers retrieved`);
-  return result;
+  for (let page = 1; page <= MAX_PAGES; page++) {
+    const result = await fetchBaseScan<BaseScanTokenTransfer>({
+      module: 'account',
+      action: 'tokennfttx',
+      address,
+      startblock: '0',
+      endblock: '99999999',
+      page: String(page),
+      offset: String(PAGE_SIZE),
+      sort: 'desc',
+    });
+
+    allTransfers = [...allTransfers, ...result];
+
+    // If we got fewer than PAGE_SIZE, we've reached the end
+    if (result.length < PAGE_SIZE) {
+      break;
+    }
+  }
+
+  log(`✓ ${allTransfers.length} NFT transfers retrieved`);
+  return allTransfers;
 }
+
 
 // Calculate wallet statistics
 export function calculateWalletStats(
