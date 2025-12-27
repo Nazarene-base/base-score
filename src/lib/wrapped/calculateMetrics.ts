@@ -395,6 +395,7 @@ export function calculateWrappedMetrics(
         farcasterFollowers: 0,    // NEW: Populated from Farcaster API
         farcasterCasts: 0,         // NEW: Populated from Farcaster API
         hasFarcaster: false,       // NEW: Populated from Farcaster API
+        hasPowerBadge: false,      // NEW: Populated from Farcaster API
         // Builder: Count contract deployments (transactions where 'to' is null/empty)
         contractsDeployed: countContractDeployments(txs2025, walletAddress),
         // Yield Farmer: Count DeFi protocol interactions

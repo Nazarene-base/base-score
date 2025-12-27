@@ -250,8 +250,10 @@ export function useWrappedData(): UseWrappedDataResult {
                     wrappedData.farcasterCasts = farcasterData.castCount || 0;
                     wrappedData.farcasterTipsSent = farcasterData.degenTipsSent || 0;
                     wrappedData.farcasterTipsReceived = farcasterData.degenTipsReceived || 0;
+                    wrappedData.hasPowerBadge = farcasterData.hasPowerBadge || false;
                     log('Farcaster data loaded:', farcasterData.username,
                         'followers:', farcasterData.followerCount,
+                        'powerBadge:', farcasterData.hasPowerBadge,
                         'tips:', farcasterData.degenTipsSent + farcasterData.degenTipsReceived);
                 } else {
                     wrappedData.hasFarcaster = false;

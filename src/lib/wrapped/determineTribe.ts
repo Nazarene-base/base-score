@@ -97,6 +97,11 @@ export function determineTribe(data: Partial<WrappedData>): { tribe: Tribe; trib
             else if (data.farcasterCasts >= 100) scores['Social Butterfly'] += 20;
             else if (data.farcasterCasts >= 20) scores['Social Butterfly'] += 10;
         }
+
+        // Power Badge bonus (exclusive Farcaster status)
+        if (data.hasPowerBadge) {
+            scores['Social Butterfly'] += 25;
+        }
     }
 
     // Tip activity (social payments)

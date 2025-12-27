@@ -109,6 +109,7 @@ export interface WrappedData {
     farcasterFollowers: number;              // NEW: Farcaster follower count
     farcasterCasts: number;                  // NEW: Number of casts
     hasFarcaster: boolean;                   // NEW: Has Farcaster account
+    hasPowerBadge: boolean;                  // NEW: Farcaster Power Badge holder
 
     // === BUILDER ===
     contractsDeployed: number;               // NEW: Number of contracts deployed
