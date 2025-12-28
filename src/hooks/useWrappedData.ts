@@ -1,7 +1,7 @@
-// Only log in development (FIX M-5)
-const isDev = process.env.NODE_ENV === 'development';
-const log = (...args: unknown[]) => isDev && console.log('[Wrapped]', ...args);
-const logWarn = (...args: unknown[]) => isDev && console.warn('[Wrapped]', ...args);
+// PRODUCTION LOGGING ENABLED: Debugging "No 2025 Activity" issue
+// TODO: Revert to development-only logging after issue is resolved
+const log = (...args: unknown[]) => console.log('[Wrapped]', ...args);
+const logWarn = (...args: unknown[]) => console.warn('[Wrapped]', ...args);
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAccount } from 'wagmi';

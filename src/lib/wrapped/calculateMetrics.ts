@@ -200,12 +200,32 @@ export function calculateWrappedMetrics(
     // BUG-H3 FIX: Calculate YEAR_END at function execution time, not module load time
     const YEAR_END = new Date();
 
+    // DIAGNOSTIC LOGGING: Trace the 2025 filtering issue
+    console.log('[Metrics] Input:', {
+        walletAddress: walletAddress.slice(0, 10) + '...',
+        totalTxInput: transactions.length,
+        sampleTimestamps: transactions.slice(0, 3).map(tx => ({
+            raw: tx.timeStamp,
+            parsed: new Date(Number(tx.timeStamp) * 1000).toISOString(),
+        })),
+    });
+
     // Get first transaction ever
     const firstEver = getFirstTransaction(transactions);
 
     // Filter to 2025 only for year-specific stats
     const txs2025 = filterTo2025(transactions, YEAR_END);
     const first2025 = getFirstTransaction(txs2025);
+
+    // DIAGNOSTIC: Log filter results
+    console.log('[Metrics] 2025 filter:', {
+        inputCount: transactions.length,
+        outputCount: txs2025.length,
+        yearStart: YEAR_START.toISOString(),
+        yearEnd: YEAR_END.toISOString(),
+        first2025Hash: first2025?.hash?.slice(0, 10),
+        first2025Date: first2025?.date,
+    });
 
     // Basic counts
     const totalTransactions = txs2025.length;
