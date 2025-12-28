@@ -19,9 +19,10 @@ const memoryCache = new Map<string, CacheEntry>();
 
 /**
  * Generate cache key for wrapped data
+ * VERSION 2: Bumped to invalidate poisoned caches from "no 2025 activity" bug
  */
 function getCacheKey(address: string, year: number = 2025): string {
-    return `wrapped:${address.toLowerCase()}:${year}`;
+    return `wrapped:v2:${address.toLowerCase()}:${year}`;
 }
 
 /**

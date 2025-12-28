@@ -5,9 +5,9 @@ import * as jose from 'jose';
 const CDP_API_KEY_NAME = process.env.CDP_API_KEY_NAME;
 const CDP_API_KEY_PRIVATE_KEY = process.env.CDP_API_KEY_PRIVATE_KEY;
 
-// Only log in development
-const isDev = process.env.NODE_ENV === 'development';
-const log = (...args: unknown[]) => isDev && console.log('[CDP]', ...args);
+// PRODUCTION LOGGING ENABLED: For debugging "No 2025 Activity" issue
+// TODO: Revert to development-only logging after issue is resolved
+const log = (...args: unknown[]) => console.log('[CDP]', ...args);
 const logError = (...args: unknown[]) => console.error('[CDP Error]', ...args);
 
 // CDP API Host
@@ -207,15 +207,54 @@ export async function getCdpWalletData(address: string) {
         checkApiError(balancesData);
         checkApiError(historyData);
 
-        // CDP-BUG-4 FIX: Log response structure for debugging
-        log('CDP balances response structure:', Object.keys(balancesData || {}));
-        log('CDP history response structure:', Object.keys(historyData || {}));
+        // COMPREHENSIVE LOGGING: For debugging "No 2025 Activity" issue
+        log('CDP balances response:', {
+            keys: Object.keys(balancesData || {}),
+            type: typeof balancesData,
+            isArray: Array.isArray(balancesData),
+        });
+        log('CDP history response:', {
+            keys: Object.keys(historyData || {}),
+            type: typeof historyData,
+            isArray: Array.isArray(historyData),
+        });
 
-        // Log transaction count for debugging
-        const historyItems = Array.isArray(historyData)
-            ? historyData
-            : (historyData?.transactions || historyData?.data || []);
-        log('CDP transaction count:', Array.isArray(historyItems) ? historyItems.length : 'unknown');
+        // ROBUST TRANSACTION EXTRACTION: Handle various API response formats
+        // Try multiple possible nested paths for transaction data
+        let historyItems: unknown[] = [];
+        if (Array.isArray(historyData)) {
+            historyItems = historyData;
+        } else if (historyData && typeof historyData === 'object') {
+            // Try common nested paths in order of likelihood
+            historyItems =
+                historyData.transactions ||  // CDP format
+                historyData.data ||          // Generic wrapper
+                historyData.items ||         // Pagination format
+                historyData.results ||       // Results wrapper
+                historyData.records ||       // Records format
+                [];
+
+            // If still empty but has nested pagination, check for items inside data
+            if (historyItems.length === 0 && historyData.data && typeof historyData.data === 'object') {
+                const nestedData = historyData.data as Record<string, unknown>;
+                historyItems =
+                    (nestedData.transactions as unknown[]) ||
+                    (nestedData.items as unknown[]) ||
+                    [];
+            }
+        }
+
+        // Log detailed transaction info for debugging
+        log('CDP transactions extracted:', {
+            count: Array.isArray(historyItems) ? historyItems.length : 'N/A',
+            sampleKeys: Array.isArray(historyItems) && historyItems.length > 0
+                ? Object.keys(historyItems[0] as object)
+                : 'no data',
+            firstTimestamp: Array.isArray(historyItems) && historyItems.length > 0
+                ? (historyItems[0] as { block_timestamp?: unknown; timestamp?: unknown }).block_timestamp ||
+                (historyItems[0] as { block_timestamp?: unknown; timestamp?: unknown }).timestamp
+                : 'no data',
+        });
 
         log('CDP data received successfully');
 

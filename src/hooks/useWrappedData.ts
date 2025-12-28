@@ -67,12 +67,19 @@ export function useWrappedData(): UseWrappedDataResult {
 
         // Check persistent cache first (Vercel KV or memory)
         // FIX H-2: Check isCurrent() before using cached data
+        // FIX: Skip cache if it shows 0 transactions (likely poisoned/stale)
         try {
             const cached = await getCachedWrappedData(addressLower);
             if (cached && isCurrent()) {
-                log('Using cached wrapped data');
-                setData(cached);
-                return;
+                // CACHE BUSTING: Don't use cached data if it shows no 2025 activity
+                // This prevents serving "poisoned" cache from previous bugs
+                if (cached.totalTransactions === 0) {
+                    log('Cache shows 0 transactions, forcing fresh fetch...');
+                } else {
+                    log('Using cached wrapped data with', cached.totalTransactions, 'transactions');
+                    setData(cached);
+                    return;
+                }
             }
         } catch (cacheError) {
             logWarn('Cache check failed:', cacheError);
@@ -98,15 +105,50 @@ export function useWrappedData(): UseWrappedDataResult {
                 if (cdpResult.success && cdpResult.data?.history) {
                     // Parse history from CDP
                     const cdpHistoryRaw = cdpResult.data.history;
-                    const rawHistoryList = Array.isArray(cdpHistoryRaw)
-                        ? cdpHistoryRaw
-                        : (cdpHistoryRaw?.data || cdpHistoryRaw?.transactions || []);
 
+                    // ROBUST EXTRACTION: Handle various API response formats
+                    let rawHistoryList: any[] = [];
+                    if (Array.isArray(cdpHistoryRaw)) {
+                        rawHistoryList = cdpHistoryRaw;
+                    } else if (cdpHistoryRaw && typeof cdpHistoryRaw === 'object') {
+                        rawHistoryList =
+                            cdpHistoryRaw.transactions ||
+                            cdpHistoryRaw.data ||
+                            cdpHistoryRaw.items ||
+                            cdpHistoryRaw.results ||
+                            [];
+
+                        // Check nested data.transactions pattern
+                        if (rawHistoryList.length === 0 && cdpHistoryRaw.data && typeof cdpHistoryRaw.data === 'object') {
+                            rawHistoryList = cdpHistoryRaw.data.transactions || cdpHistoryRaw.data.items || [];
+                        }
+                    }
+
+                    log('CDP raw history list length:', rawHistoryList.length);
                     transactions = mapCdpHistoryToBasescan(rawHistoryList);
+                    log('CDP mapped transactions:', transactions.length);
 
-                    if (transactions.length > 0) {
+                    // FIX: Check if we have 2025 transactions, not just any transactions
+                    // Filter to 2025 to see if there's actual activity this year
+                    const YEAR_START = new Date('2025-01-01T00:00:00Z');
+                    const now = new Date();
+                    const txs2025 = transactions.filter(tx => {
+                        const tsNum = Number(tx.timeStamp);
+                        if (isNaN(tsNum) || tsNum <= 0) return false;
+                        const date = new Date(tsNum * 1000);
+                        return date >= YEAR_START && date <= now;
+                    });
+
+                    log('CDP 2025 transactions:', txs2025.length);
+
+                    // FALLBACK TRIGGER: If CDP returned data but NO 2025 activity, try Basescan
+                    if (transactions.length > 0 && txs2025.length === 0) {
+                        log('CDP has transactions but none in 2025, will try Basescan as fallback');
+                        usedCdp = false;
+                        transactions = []; // Reset so fallback runs
+                    } else if (transactions.length > 0) {
                         usedCdp = true;
-                        log('CDP data loaded:', transactions.length, 'transactions');
+                        log('CDP data loaded:', transactions.length, 'transactions (', txs2025.length, 'in 2025)');
 
                         // CDP-BUG-2 FIX: CDP doesn't properly split token/NFT transfers
                         // Always fetch these from Basescan for complete DeFi metrics

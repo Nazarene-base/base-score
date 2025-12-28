@@ -35,20 +35,52 @@ export function mapCdpHistoryToBasescan(cdpTransactions: any[]): any[] {
         const value = tx.value || '0';
         const input = tx.input || '0x';
 
-        // CDP uses ISO string for timestamp usually (e.g. "2024-01-01T00:00:00Z")
-        // BaseScan uses Unix timestamp in seconds (e.g. "1704067200")
+        // ROBUST TIMESTAMP PARSING: Handle ISO strings, Unix seconds, Unix milliseconds
+        // BaseScan expects Unix timestamp in seconds (e.g. "1704067200")
         let timeStamp = '0';
-        if (tx.block_timestamp) {
+        const rawTs = tx.block_timestamp || tx.timestamp || tx.time;
+        if (rawTs) {
             try {
-                const date = new Date(tx.block_timestamp);
-                timeStamp = Math.floor(date.getTime() / 1000).toString();
+                // Case 1: Already a numeric string (Unix timestamp)
+                if (typeof rawTs === 'string' && /^\d+$/.test(rawTs)) {
+                    const numVal = Number(rawTs);
+                    // If > 1e12, it's likely milliseconds, convert to seconds
+                    if (numVal > 1e12) {
+                        timeStamp = Math.floor(numVal / 1000).toString();
+                    } else {
+                        timeStamp = rawTs;
+                    }
+                }
+                // Case 2: ISO 8601 string (e.g. "2024-01-01T00:00:00Z")
+                else if (typeof rawTs === 'string' && rawTs.includes('T')) {
+                    const date = new Date(rawTs);
+                    if (!isNaN(date.getTime())) {
+                        timeStamp = Math.floor(date.getTime() / 1000).toString();
+                    }
+                }
+                // Case 3: Number (could be seconds or milliseconds)
+                else if (typeof rawTs === 'number') {
+                    if (rawTs > 1e12) {
+                        timeStamp = Math.floor(rawTs / 1000).toString();
+                    } else {
+                        timeStamp = Math.floor(rawTs).toString();
+                    }
+                }
+                // Case 4: Try to parse as Date as fallback
+                else {
+                    const date = new Date(rawTs);
+                    if (!isNaN(date.getTime())) {
+                        timeStamp = Math.floor(date.getTime() / 1000).toString();
+                    }
+                }
             } catch (e) {
-                console.warn('Error parsing CDP timestamp:', tx.block_timestamp);
+                console.warn('[CDP-MAPPING] Error parsing timestamp:', rawTs, e);
             }
-        } else if (tx.timestamp) {
-            // sometimes loosely typed APIs return 'timestamp'
-            timeStamp = tx.timestamp;
         }
+
+        // Safe gas defaults - ensure valid string numbers
+        const safeGasUsed = tx.gas_used || tx.gasUsed || tx.gas || '21000';
+        const safeGasPrice = tx.gas_price || tx.gasPrice || tx.effectiveGasPrice || '1000000';
 
         return {
             hash,
@@ -57,11 +89,11 @@ export function mapCdpHistoryToBasescan(cdpTransactions: any[]): any[] {
             value,
             input,
             timeStamp,
-            blockNumber: tx.block_number,
+            blockNumber: tx.block_number || tx.blockNumber,
             nonce: tx.nonce,
-            // BUG-3 FIX: Add gasUsed and gasPrice for gas calculations
-            gasUsed: tx.gas_used || tx.gasUsed || '21000',
-            gasPrice: tx.gas_price || tx.gasPrice || '1000000',
+            // Safe gas values with validation
+            gasUsed: String(safeGasUsed),
+            gasPrice: String(safeGasPrice),
         };
     });
 }

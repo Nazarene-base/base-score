@@ -56,10 +56,26 @@ interface NFTTransfer {
     tokenName: string;
 }
 
-// Filter transactions to 2025 (BUG-H3 FIX: Pass yearEnd dynamically)
+// Filter transactions to 2025 (with NaN safety checks)
 function filterTo2025<T extends { timeStamp: string }>(items: T[], yearEnd: Date): T[] {
     return items.filter(item => {
-        const date = new Date(Number(item.timeStamp) * 1000);
+        // Parse timestamp - should be Unix seconds after CDP mapping
+        const tsNum = Number(item.timeStamp);
+
+        // NaN SAFETY CHECK: Skip items with invalid timestamps
+        if (isNaN(tsNum) || tsNum <= 0) {
+            console.warn('[filterTo2025] Invalid timestamp, skipping:', item.timeStamp);
+            return false;
+        }
+
+        const date = new Date(tsNum * 1000);
+
+        // Additional NaN check after Date conversion
+        if (isNaN(date.getTime())) {
+            console.warn('[filterTo2025] Invalid date from timestamp:', tsNum);
+            return false;
+        }
+
         return date >= YEAR_START && date <= yearEnd;
     });
 }
