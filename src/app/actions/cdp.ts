@@ -10,8 +10,10 @@ const CDP_API_KEY_PRIVATE_KEY = process.env.CDP_API_KEY_PRIVATE_KEY;
 const log = (...args: unknown[]) => console.log('[CDP]', ...args);
 const logError = (...args: unknown[]) => console.error('[CDP Error]', ...args);
 
-// CDP API Host
-const CDP_API_HOST = 'api.developer.coinbase.com';
+// CDP API Host - Updated to new CDP API domain (Dec 2024)
+// Old: api.developer.coinbase.com (deprecated)
+// New: api.cdp.coinbase.com
+const CDP_API_HOST = 'api.cdp.coinbase.com';
 
 /**
  * Generate a JWT for CDP API authentication.
@@ -148,8 +150,10 @@ export async function getCdpWalletData(address: string) {
         const timeoutId = setTimeout(() => controller.abort(), 25000);
 
         // --- Token Balances API ---
-        // Endpoint: GET /platform/v2/evm/token-balances/{network}/{address}
-        const balancePathShort = `/platform/v2/evm/token-balances/${network}/${address}`;
+        // NEW v2 Endpoint: GET /platform/v2/data/evm/token-balances/{network}/{address}
+        // Network uses simple names like 'base' instead of 'base-mainnet'
+        const balanceNetwork = 'base';
+        const balancePathShort = `/platform/v2/data/evm/token-balances/${balanceNetwork}/${address}`;
 
         log('Generating JWT for balances...');
         const balancesJwt = await generateJwt('GET', balancePathShort);
@@ -170,8 +174,9 @@ export async function getCdpWalletData(address: string) {
         });
 
         // --- Transaction History API ---
-        // Endpoint: GET /platform/v1/networks/{network}/addresses/{address}/transactions
-        // CDP-BUG-1 FIX: Increase limit from 100 to 500 for more complete data
+        // NEW v2 Endpoint: Try the new data API path
+        // Note: The transaction history API may not be available in v2 yet
+        // Fallback to v1 format which may still work
         const historyPathShort = `/platform/v1/networks/${network}/addresses/${address}/transactions`;
 
         log('Generating JWT for history...');
@@ -263,6 +268,8 @@ export async function getCdpWalletData(address: string) {
             data: {
                 balances: balancesData,
                 history: historyData,
+                // FIX: Return pre-extracted transactions to avoid double extraction
+                transactions: historyItems as any[],
             },
         };
 

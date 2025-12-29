@@ -6,13 +6,53 @@ import { WrappedCardProps } from '@/types/wrapped';
 export function ProtocolsCard({ data, onNext }: WrappedCardProps) {
     const getProtocolEmoji = (name: string) => {
         const emojis: Record<string, string> = {
+            // DEXs
             'Uniswap': '🦄',
             'Aerodrome': '✈️',
+            'BaseSwap': '🔄',
+            'Odos': '🐙',
+            '1inch': '🦊',
+            'KyberSwap': '💎',
+            'SushiSwap': '🍣',
+            'Maverick': '🎯',
+            'LI.FI': '🔗',
+            'Paraswap': '🦜',
+            // Bridges
+            'Base Bridge': '🌉',
+            'Stargate': '⭐',
+            'Synapse': '🧠',
+            'Hop': '🐰',
+            'Socket': '🔌',
+            'LayerZero': '0️⃣',
+            'Across': '🌊',
+            // NFT
+            'Zora': '🎨',
+            'Highlight': '✨',
+            'OpenSea': '🌊',
+            'Reservoir': '💧',
+            'Base Paint': '🖌️',
+            'Party Protocol': '🎉',
+            'ERC-6551': '🤖',
+            // DeFi
             'Aave': '👻',
             'Compound': '🏦',
-            'Base Bridge': '🌉',
-            'Zora': '🎨',
+            'Moonwell': '🌙',
+            'Morpho': '🦋',
+            'Extra Finance': '💰',
+            'Seamless': '🧵',
+            'Beefy': '🐮',
+            // Identity
             'Basename': '📛',
+            'Warpcast': '💬',
+            // Tokens/Other
+            'USDC': '💵',
+            'WETH': 'Ξ',
+            'DAI': '📀',
+            'cbETH': '🔷',
+            'rETH': '🚀',
+            'Multicall3': '📞',
+            'Gnosis Safe': '🔐',
+            'Safe': '🔐',
             'None': '❓',
         };
         return emojis[name] || '🔵';

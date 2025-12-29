@@ -103,25 +103,33 @@ export function useWrappedData(): UseWrappedDataResult {
 
                 // FIX H-3: Add null safety for CDP data and history
                 if (cdpResult.success && cdpResult.data?.history) {
-                    // Parse history from CDP
-                    const cdpHistoryRaw = cdpResult.data.history;
-
-                    // ROBUST EXTRACTION: Handle various API response formats
+                    // FIX: Use pre-extracted transactions from CDP action if available
                     let rawHistoryList: any[] = [];
-                    if (Array.isArray(cdpHistoryRaw)) {
-                        rawHistoryList = cdpHistoryRaw;
-                    } else if (cdpHistoryRaw && typeof cdpHistoryRaw === 'object') {
-                        rawHistoryList =
-                            cdpHistoryRaw.transactions ||
-                            cdpHistoryRaw.data ||
-                            cdpHistoryRaw.items ||
-                            cdpHistoryRaw.results ||
-                            [];
 
-                        // Check nested data.transactions pattern
-                        if (rawHistoryList.length === 0 && cdpHistoryRaw.data && typeof cdpHistoryRaw.data === 'object') {
-                            rawHistoryList = cdpHistoryRaw.data.transactions || cdpHistoryRaw.data.items || [];
+                    // Try pre-extracted transactions first (from updated CDP action)
+                    if (Array.isArray(cdpResult.data.transactions) && cdpResult.data.transactions.length > 0) {
+                        rawHistoryList = cdpResult.data.transactions;
+                        log('Using pre-extracted transactions:', rawHistoryList.length);
+                    } else {
+                        // Fallback: Parse history from CDP (legacy support)
+                        const cdpHistoryRaw = cdpResult.data.history;
+
+                        if (Array.isArray(cdpHistoryRaw)) {
+                            rawHistoryList = cdpHistoryRaw;
+                        } else if (cdpHistoryRaw && typeof cdpHistoryRaw === 'object') {
+                            rawHistoryList =
+                                cdpHistoryRaw.transactions ||
+                                cdpHistoryRaw.data ||
+                                cdpHistoryRaw.items ||
+                                cdpHistoryRaw.results ||
+                                [];
+
+                            // Check nested data.transactions pattern
+                            if (rawHistoryList.length === 0 && cdpHistoryRaw.data && typeof cdpHistoryRaw.data === 'object') {
+                                rawHistoryList = cdpHistoryRaw.data.transactions || cdpHistoryRaw.data.items || [];
+                            }
                         }
+                        log('Using fallback extraction:', rawHistoryList.length);
                     }
 
                     log('CDP raw history list length:', rawHistoryList.length);

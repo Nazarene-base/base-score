@@ -145,18 +145,19 @@ async function fetchBaseScan<T>(params: Record<string, string>, retryCount = 0):
   }
 }
 
-// Get all transactions for an address (multi-page, up to 5000)
+// Get all transactions for an address (multi-page, up to 10000)
 // Returns { transactions, isApproximate } where isApproximate=true if we hit the limit
 export async function getTransactions(address: string): Promise<{ data: BaseScanTransaction[], isApproximate: boolean }> {
   // BUG-L1 FIX: Use conditional logging
   log('📥 Fetching transactions (multi-page) for:', address);
 
-  const MAX_PAGES = 5;
+  const MAX_PAGES = 10;  // Increased from 5 to 10 for more complete data (10,000 max)
   const PAGE_SIZE = 1000;
   let allTransactions: BaseScanTransaction[] = [];
   let isApproximate = false;
 
   for (let page = 1; page <= MAX_PAGES; page++) {
+    log(`📄 Fetching page ${page}/${MAX_PAGES}...`);
     const result = await fetchBaseScan<BaseScanTransaction>({
       module: 'account',
       action: 'txlist',
@@ -169,17 +170,18 @@ export async function getTransactions(address: string): Promise<{ data: BaseScan
     });
 
     allTransactions = [...allTransactions, ...result];
-    log(`📄 Page ${page}: ${result.length} transactions`);
+    log(`📄 Page ${page}: ${result.length} transactions (total: ${allTransactions.length})`);
 
     // If we got fewer than PAGE_SIZE, we've reached the end
     if (result.length < PAGE_SIZE) {
+      log('✅ Reached end of transaction history');
       break;
     }
 
     // If we fetched all pages and still getting full pages, data is approximate
     if (page === MAX_PAGES && result.length === PAGE_SIZE) {
       isApproximate = true;
-      log('⚠️ Wallet has >5000 transactions - data is approximate');
+      log('⚠️ Wallet has >10000 transactions - data is approximate');
     }
   }
 
